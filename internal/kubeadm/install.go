@@ -592,10 +592,10 @@ esac
 	if err != nil {
 		return fmt.Errorf("%s: could not test your load balancer %s: %w\n%s", x.label, o.ControlPlaneEndpoint, err, ui.LastLines(out, 5))
 	}
-	switch got := strings.TrimSpace(out); {
-	case got == "open" || got == "refused":
+	switch got := strings.TrimSpace(out); got {
+	case "open", "refused":
 		return nil
-	case got == "timeout":
+	case "timeout":
 		return fmt.Errorf("%s can't reach your load balancer %s (no answer within 5 s); nothing was changed. It must forward TCP %s to the control planes, and the control planes must reach it: kubeadm's HA page says a timeout means \"the load balancer cannot communicate with the control plane node\"", x.label, o.ControlPlaneEndpoint, port)
 	default:
 		return fmt.Errorf("%s can't reach your load balancer %s; nothing was changed: %s", x.label, o.ControlPlaneEndpoint, strings.TrimPrefix(got, "other: "))

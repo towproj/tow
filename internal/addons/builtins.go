@@ -200,7 +200,9 @@ func (c component) documents() []document {
 				continue
 			}
 			var text bytes.Buffer
-			yaml.NewEncoder(&text).Encode(&n)
+			if err := yaml.NewEncoder(&text).Encode(&n); err != nil {
+				panic(fmt.Sprintf("%s: tow's own YAML doesn't encode: %v", c.name, err)) // a bug, caught by the tests
+			}
 			out = append(out, document{Object{APIVersion: m.APIVersion, Kind: m.Kind, Namespace: m.Metadata.Namespace, Name: m.Metadata.Name}, text.String()})
 		}
 	}

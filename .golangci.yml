@@ -1,0 +1,51 @@
+# golangci-lint (v2): Go's standard linters, run in CI (lint job) and with `make lint`.
+# Tuned so that a finding is a real problem, not tow working as designed.
+version: "2"
+
+linters:
+  default: none
+  enable:
+    - errcheck    # errors that are dropped
+    - gosec       # security
+    - govet
+    - ineffassign
+    - nolintlint  # every //nolint names its linter and says why
+    - staticcheck # bugs, deprecated APIs, simplifications
+    - unused      # dead code
+  settings:
+    gosec:
+      excludes:
+        - G101 # "hardcoded credentials" matches names like PROXMOX_VE_API_TOKEN; real secrets
+               # are gitleaks' and GitHub secret scanning's job
+        - G104 # unhandled errors: errcheck's job, it would report each one twice
+        - G204 # running a program named by a variable: tow runs tofu, helm, kubectl and ssh
+        - G304 # opening a file named by a variable: tow reads the cluster files it's given
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+    staticcheck:
+      checks:
+        - all
+        # golangci-lint's defaults leave these out too:
+        - -ST1000
+        - -ST1003
+        - -ST1016
+        - -ST1020
+        - -ST1021
+        - -ST1022
+        # tow's errors are whole messages for people, often several lines ending with what
+        # to do next ("Fix them and run 'tow apply' again."), not lowercase fragments.
+        - -ST1005
+  exclusions:
+    # Errors of Close, Flush, printing and os.Remove(All) aren't checked: golangci-lint's
+    # standard preset for them.
+    presets:
+      - std-error-handling
+    rules:
+      # Tests may drop errors and use fixed paths and permissions.
+      - path: _test\.go
+        linters: [errcheck, gosec]
+
+formatters:
+  enable:
+    - gofmt

@@ -44,7 +44,7 @@ func init() {
 	restoreCmd.Flags().BoolP("yes", "y", false, "Restore without asking")
 	restoreCmd.Flags().Bool("dry-run", false, "Only show what the restore would do")
 	restoreCmd.Flags().Bool("no-backup", false, "Take no safety backup of the cluster as it is now first")
-	restoreCmd.MarkFlagRequired("name")
+	cobra.CheckErr(restoreCmd.MarkFlagRequired("name")) // fails only on a flag that doesn't exist
 }
 
 func runRestore(cmd *cobra.Command, args []string) error {

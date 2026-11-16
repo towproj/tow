@@ -46,7 +46,7 @@ func init() {
 	deleteCmd.Flags().Bool("reset", false, "On your own machines, also undo what tow prepared there")
 	deleteCmd.Flags().Bool("forget", false, "On your own machines, forget the cluster without touching any machine")
 	deleteCmd.MarkFlagsMutuallyExclusive("reset", "forget")
-	deleteCmd.MarkFlagRequired("name")
+	cobra.CheckErr(deleteCmd.MarkFlagRequired("name")) // fails only on a flag that doesn't exist
 }
 
 func runDelete(cmd *cobra.Command, args []string) error {

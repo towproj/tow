@@ -32,7 +32,7 @@ func Lock(name string) (func(), error) {
 		return nil, err
 	}
 	return func() {
-		syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
+		_ = syscall.Flock(int(f.Fd()), syscall.LOCK_UN) // closing the file releases it anyway
 		f.Close()
 	}, nil
 }

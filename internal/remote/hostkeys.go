@@ -50,7 +50,7 @@ func Forget(path string, hosts []string) error {
 	if out != "" {
 		out += "\n"
 	}
-	return os.WriteFile(path, []byte(out), 0600)
+	return os.WriteFile(path, []byte(out), 0600) //nolint:gosec // tow's own known_hosts file for the cluster
 }
 
 // pinningCallback trusts a host on first contact and refuses it if its key ever changes.

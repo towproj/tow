@@ -13,6 +13,7 @@
 /vendor/
 *.test
 *.out
+coverage.html
 .cache/
 /integration/logs/
 /integration/conformance/

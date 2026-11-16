@@ -24,7 +24,7 @@ func lockInit(ctx context.Context, path string) (func(), error) {
 		err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB)
 		if err == nil {
 			return func() {
-				syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
+				_ = syscall.Flock(int(f.Fd()), syscall.LOCK_UN) // closing the file releases it anyway
 				f.Close()
 			}, nil
 		}

@@ -866,7 +866,7 @@ func TestInstallWithKubeVIP(t *testing.T) {
 		}
 	}
 	reset, manifest, init := strings.Index(retry, "kubeadm reset"), strings.Index(retry, kubevip.StaticPodFile), strings.Index(retry, "kubeadm init --skip-token-print")
-	if reset < 0 || !(reset < manifest && manifest < init) || !strings.Contains(retry, "value: ens18") || !strings.Contains(retry, "value: 10.0.0.100") {
+	if reset < 0 || reset >= manifest || manifest >= init || !strings.Contains(retry, "value: ens18") || !strings.Contains(retry, "value: 10.0.0.100") {
 		t.Errorf("kube-vip goes in after the reset, before init:\n%s", retry)
 	}
 	if !strings.Contains(cp0.configs[1], "controlPlaneEndpoint: 10.0.0.100:6443\n") || !strings.Contains(cp0.configs[1], "certSANs:\n    - 10.0.0.100\n") {

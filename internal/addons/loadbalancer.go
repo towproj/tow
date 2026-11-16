@@ -1,6 +1,7 @@
 package addons
 
 import (
+	"encoding/binary"
 	"fmt"
 	"net/netip"
 	"strings"
@@ -239,9 +240,8 @@ func bounds(a string) (string, string) {
 		p = p.Masked()
 		b := p.Addr().As4()
 		host := uint32(1)<<(32-p.Bits()) - 1
-		n := (uint32(b[0])<<24 | uint32(b[1])<<16 | uint32(b[2])<<8 | uint32(b[3])) | host
-		last := netip.AddrFrom4([4]byte{byte(n >> 24), byte(n >> 16), byte(n >> 8), byte(n)})
-		return p.Addr().String(), last.String()
+		binary.BigEndian.PutUint32(b[:], binary.BigEndian.Uint32(b[:])|host)
+		return p.Addr().String(), netip.AddrFrom4(b).String()
 	}
 	return a, a
 }

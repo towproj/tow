@@ -12,13 +12,15 @@ Go 1.26 or newer.
 ```bash
 go build -o tow     # or: make build
 make test               # unit tests; CI runs them with the race detector on every push
+make lint               # golangci-lint v2 with .golangci.yml, as CI runs it
+make cover              # unit-test coverage: the total, and coverage.html line by line
 make hooks              # once per clone: gitleaks scans every commit for secrets
 ```
 The integration tests create real clusters: k3d on your machine (`make test-integration`, needs Docker and k3d), or machines on AWS, GCP, Azure or Proxmox, which cost a few cents a run. Every test, what it covers, what it costs and how to run it: [docs/testing/README.md](docs/testing/README.md). Run the tests that touch what you changed, and say which ones in your pull request.
 
 ## Pull requests
-- One change per pull request, with tests beside the code (`*_test.go`) and, for a new field or feature, an example in `examples/`.
-- `gofmt`, `go vet` and `make test` pass (CI checks all three).
+- One change per pull request, with tests beside the code (`*_test.go`) and, for a new field or feature, an example in `examples/`. Codecov comments on each pull request with the coverage of the lines it changes.
+- `gofmt`, `go vet`, `make test` and `make lint` pass (CI checks them all). A `//nolint` names its linter and says why (`//nolint:gosec // the user's own SSH agent socket`).
 - No secrets, ever: not in code, tests, examples or cluster files. Anything secret comes from an environment variable at run time.
 - Docs follow the code: the README, `docs/` and the command's `--help`. The pages in `docs/` are also the documentation site (Hugo and Docsy, in `website/`); every pull request builds it and checks its links. To preview it, with Hugo extended and Node installed: `cd website && npm ci && npm run hugo -- server`.
 - In workflows, actions are pinned to a full commit SHA with the version as a comment (`uses: actions/checkout@<sha> # v7.0.1`), and downloaded tools to a version and its sha256; Dependabot keeps the pins current.

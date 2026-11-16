@@ -420,7 +420,7 @@ func download(ctx context.Context, t Tool, url, sum, dir string) (string, error)
 			return "", fmt.Errorf("%s: %w", url, err)
 		}
 	}
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o755); err != nil { //nolint:gosec // a bin folder (~/.local/bin): its programs must be runnable
 		return "", err
 	}
 	// Written next to its final place, then renamed: a half-written program is never run.

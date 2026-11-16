@@ -33,7 +33,7 @@ func init() {
 	rootCmd.AddCommand(backupCmd)
 	backupCmd.Flags().String("name", "", "Cluster to back up")
 	backupCmd.Flags().Bool("list", false, "List the cluster's backups on this machine instead")
-	backupCmd.MarkFlagRequired("name")
+	cobra.CheckErr(backupCmd.MarkFlagRequired("name")) // fails only on a flag that doesn't exist
 }
 
 func runBackup(cmd *cobra.Command, args []string) error {
