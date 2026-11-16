@@ -38,11 +38,12 @@ import (
 const renewWithin = 30 * 24 * time.Hour
 
 // apiCertExpiry reads when the API server's certificate expires, from its TLS handshake;
-// nothing is sent over the connection. The certificate is checked as kubectl checks it
-// (signed by the kubeconfig's certificate authority, issued for the server's name), except
-// that an expired one is still accepted: apply has to read its date to renew it. It's
-// checked at its last valid second then. A kubeconfig that opts out of checking
-// (insecure-skip-tls-verify) is followed, as kubectl follows it.
+// nothing is sent over the connection. Go checks the certificate as kubectl does (signed by
+// the kubeconfig's certificate authority, issued for the server's name). An expired one must
+// still be read, since apply renews it: then the handshake is made again, checked at the
+// certificate's last valid second, so everything but the date is still checked. A
+// kubeconfig that opts out of checking (insecure-skip-tls-verify) is followed, as kubectl
+// follows it.
 func apiCertExpiry(ctx context.Context, cluster *clientcmdapi.Cluster) (time.Time, error) {
 	server, err := url.Parse(cluster.Server)
 	if err != nil {
@@ -65,40 +66,30 @@ func apiCertExpiry(ctx context.Context, cluster *clientcmdapi.Cluster) (time.Tim
 			return time.Time{}, errors.New("the kubeconfig's certificate authority holds no certificate")
 		}
 	}
-	var notAfter time.Time
-	conf := &tls.Config{
-		ServerName: name,
-		// Go's own check refuses an expired certificate; VerifyConnection makes the same
-		// checks, at a time the certificate was valid.
-		InsecureSkipVerify: true, // #nosec G402 -- verified in VerifyConnection
-		VerifyConnection: func(cs tls.ConnectionState) error {
-			if len(cs.PeerCertificates) == 0 {
-				return errors.New("the API server sent no certificate")
-			}
-			leaf := cs.PeerCertificates[0]
-			if !cluster.InsecureSkipTLSVerify {
-				at := time.Now()
-				if leaf.NotAfter.Before(at) {
-					at = leaf.NotAfter.Add(-time.Second)
-				}
-				opts := x509.VerifyOptions{Roots: roots, DNSName: name, CurrentTime: at, Intermediates: x509.NewCertPool()}
-				for _, c := range cs.PeerCertificates[1:] {
-					opts.Intermediates.AddCert(c)
-				}
-				if _, err := leaf.Verify(opts); err != nil {
-					return fmt.Errorf("the API server's certificate: %w", err)
-				}
-			}
-			notAfter = leaf.NotAfter
-			return nil
-		},
+	conf := &tls.Config{RootCAs: roots, ServerName: name, InsecureSkipVerify: cluster.InsecureSkipTLSVerify}
+	handshake := func() (time.Time, error) {
+		dialer := &tls.Dialer{NetDialer: &net.Dialer{Timeout: 5 * time.Second}, Config: conf}
+		conn, err := dialer.DialContext(ctx, "tcp", server.Host)
+		if err != nil {
+			return time.Time{}, err
+		}
+		defer conn.Close()
+		certs := conn.(*tls.Conn).ConnectionState().PeerCertificates
+		if len(certs) == 0 {
+			return time.Time{}, errors.New("the API server sent no certificate")
+		}
+		return certs[0].NotAfter, nil
 	}
-	dialer := &tls.Dialer{NetDialer: &net.Dialer{Timeout: 5 * time.Second}, Config: conf}
-	conn, err := dialer.DialContext(ctx, "tcp", server.Host)
+	notAfter, err := handshake()
+	var invalid x509.CertificateInvalidError
+	if errors.As(err, &invalid) && invalid.Reason == x509.Expired {
+		last := invalid.Cert.NotAfter.Add(-time.Second)
+		conf.Time = func() time.Time { return last }
+		notAfter, err = handshake()
+	}
 	if err != nil {
-		return time.Time{}, err
+		return time.Time{}, fmt.Errorf("the API server's certificate: %w", err)
 	}
-	conn.Close()
 	return notAfter, nil
 }
 
