@@ -96,13 +96,23 @@ jobs:
           umask 077
           printf '%s\n' "$KEY" > "$RUNNER_TEMP/signing.asc"
           echo "RPM_SIGNING_KEY_FILE=$RUNNER_TEMP/signing.asc" >> "$GITHUB_ENV"
+      # A token from the project's GitHub App: homebrew-tap only, contents only, valid one
+      # hour, revoked when the job ends.
+      - id: tap
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          owner: towproj
+          repositories: homebrew-tap
+          permission-contents: write
       - uses: goreleaser/goreleaser-action@v7
         with:
           version: ${{ env.GORELEASER_VERSION }}
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          HOMEBREW_TAP_TOKEN: ${{ steps.tap.outputs.token }}
       - name: Forget the key
         if: always()
         run: rm -f "$RUNNER_TEMP/signing.asc"

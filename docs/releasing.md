@@ -35,9 +35,9 @@ goreleaser build --single-target --snapshot --clean
    ```
 3. The workflow publishes the release, then the repositories. A version with a suffix (`v0.2.0-rc.1`) is marked a pre-release and stays out of the repositories.
 
-The release jobs and the site's deployment run only while the repository is public: signatures and provenance name the repository in public logs, and GitHub Pages needs it public. Pages' source must be set to GitHub Actions (Settings → Pages). They need two secrets:
-- `PACKAGES_SIGNING_KEY`: the packages' GPG private key (below).
-- `HOMEBREW_TAP_TOKEN`: a fine-grained token that can write the contents of `towproj/homebrew-tap` only.
+The release jobs and the site's deployment run only while the repository is public: signatures and provenance name the repository in public logs, and GitHub Pages needs it public. Pages' source must be set to GitHub Actions (Settings → Pages). They need two secrets and a variable:
+- `PACKAGES_SIGNING_KEY` (secret): the packages' GPG private key (below).
+- `RELEASE_APP_CLIENT_ID` (variable) and `RELEASE_APP_PRIVATE_KEY` (secret): the project's GitHub App, owned by `towproj`, installed on `towproj/homebrew-tap` only, with one permission, Contents: read and write. Each release gets a token from it that is valid for one hour and revoked when the job ends; nothing expires or needs renewing. If the private key is lost or leaked, generate a new one in the App's settings, set the secret again, and delete the old key there.
 
 ## The packages' signing key
 One key signs the `.rpm` files and both repositories. Users trust it once, when they add a repository, so it must stay the same for years: make it once, keep it safe, and renew it before it expires.
