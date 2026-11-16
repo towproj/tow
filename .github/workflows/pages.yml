@@ -13,9 +13,10 @@ on:
 permissions:
   contents: read
 
+# A new push to a pull request stops its previous run; a deployment is never stopped.
 concurrency:
   group: pages-${{ github.ref }}
-  cancel-in-progress: false
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   HUGO_VERSION: 0.170.0
