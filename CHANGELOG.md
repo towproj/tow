@@ -4,6 +4,12 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Security
+- When `apply` and `status` read the API server's certificate dates, the certificate is now checked as kubectl checks it (the kubeconfig's certificate authority, the server's name); only an expired one is still read, so `apply` can renew it. Before, it wasn't checked at all.
+
+### Fixed
+- Releases publish the Homebrew cask themselves again: v0.1.0's release stopped before it (a token setting GoReleaser refuses), and its cask's quarantine step was in the wrong syntax. v0.1.0's cask was written by hand and installs on Apple Silicon and Intel Macs.
+
 ## [0.1.0] - 2026-11-16
 The first release.
 

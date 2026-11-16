@@ -99,16 +99,20 @@ homebrew_casks:
       zsh: completions/tow.zsh
       fish: completions/tow.fish
     # The token comes from the project's GitHub App on a real release only: valid one hour,
-    # homebrew-tap only (docs/releasing.md).
+    # homebrew-tap only (docs/releasing.md). GoReleaser takes a token only in this exact form
+    # (v0.1.0's release stopped on `index .Env ...`); it's read when publishing, so snapshots
+    # don't need it.
     repository:
       owner: towproj
       name: homebrew-tap
-      token: '{{ index .Env "HOMEBREW_TAP_TOKEN" }}'
+      token: '{{ .Env.HOMEBREW_TAP_TOKEN }}'
+    # Rendered as Homebrew's postflight_steps, where the staged folder is {{staged_path}}
+    # (GoReleaser's .StagedPath), not Ruby's #{staged_path}.
     hooks:
       post:
         install_steps: |
           on_macos do
-            run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/tow"]
+            run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "{{ .StagedPath }}/tow"]
           end
 
 release:

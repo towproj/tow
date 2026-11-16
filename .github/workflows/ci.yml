@@ -1,6 +1,10 @@
 name: CI
 on: [push, pull_request]
 
+# CI only reads the repository.
+permissions:
+  contents: read
+
 # A new push stops the run still going for the same branch or pull request; main keeps every run.
 concurrency:
   group: ci-${{ github.ref }}
@@ -10,12 +14,20 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with: { go-version: '1.26' }
       
+      # A pinned release, checked against its sha256 (k3d's checksums.txt), not an install
+      # script from k3d's main branch.
       - name: Install k3d
-        run: curl -s https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
+        env:
+          K3D_VERSION: 5.9.0
+          K3D_SHA256: 06d8f25bc3a971c4eb29e0ff08429b180402db0f4dec838c9eac427e296800a0
+        run: |
+          curl -sSfL -o k3d "https://github.com/k3d-io/k3d/releases/download/v${K3D_VERSION}/k3d-linux-amd64"
+          echo "${K3D_SHA256}  k3d" | sha256sum -c -
+          sudo install k3d /usr/local/bin/k3d && rm k3d && k3d version
       
       # With the race detector: tow works on several machines at once. The runner has a
       # C compiler (cgo) and the memory the AWS SDK's packages need under -race.
@@ -36,7 +48,7 @@ jobs:
   secrets:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { fetch-depth: 0 } # scan the whole history, not just the pushed commit
 
       - name: Install gitleaks
@@ -54,8 +66,8 @@ jobs:
   tofu:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: opentofu/setup-opentofu@v2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: opentofu/setup-opentofu@a1320f892987e89d278cc92dc5adc984fb93aca4 # v2.0.2
         with: { tofu_version: 1.13.9, tofu_wrapper: false }
 
       # Offline checks only: no cloud credentials exist in CI.
@@ -70,7 +82,13 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-go@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with: { go-version: '1.26' }
       - run: go build -o tow
+      - name: gofmt
+        run: |
+          unformatted=$(git ls-files -z '*.go' | xargs -0 gofmt -l)
+          if [ -n "$unformatted" ]; then echo "Not formatted with gofmt:"; echo "$unformatted"; exit 1; fi
+      - name: go vet
+        run: go vet ./...

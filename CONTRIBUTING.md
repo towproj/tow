@@ -18,9 +18,10 @@ The integration tests create real clusters: k3d on your machine (`make test-inte
 
 ## Pull requests
 - One change per pull request, with tests beside the code (`*_test.go`) and, for a new field or feature, an example in `examples/`.
-- `gofmt`, `go vet` and `make test` pass.
+- `gofmt`, `go vet` and `make test` pass (CI checks all three).
 - No secrets, ever: not in code, tests, examples or cluster files. Anything secret comes from an environment variable at run time.
 - Docs follow the code: the README, `docs/` and the command's `--help`. The pages in `docs/` are also the documentation site (Hugo and Docsy, in `website/`); every pull request builds it and checks its links. To preview it, with Hugo extended and Node installed: `cd website && npm ci && npm run hugo -- server`.
+- In workflows, actions are pinned to a full commit SHA with the version as a comment (`uses: actions/checkout@<sha> # v7.0.1`), and downloaded tools to a version and its sha256; Dependabot keeps the pins current.
 - Pull requests are squash-merged into `main`. How releases are made: [docs/releasing.md](docs/releasing.md).
 
 ## Developer Certificate of Origin

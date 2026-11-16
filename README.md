@@ -5,6 +5,10 @@
   </picture>
 </h1>
 
+<p align="center">
+  <a href="https://www.bestpractices.dev/projects/16808"><img alt="OpenSSF Best Practices" src="https://www.bestpractices.dev/projects/16808/badge"></a>
+</p>
+
 > One file describes your Kubernetes cluster; tow builds it, keeps it as described, and takes it down.
 
 Describe your cluster in one file: where the machines run (AWS, GCP, Azure, Proxmox VE, or your own), which Kubernetes (k3s or kubeadm), and which add-ons. tow builds exactly that. Change the file, run `apply` again, and the running cluster follows, one node at a time.
