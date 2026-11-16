@@ -14,21 +14,21 @@ A kubeadm cluster built by tow passes Kubernetes' conformance tests (Sonobuoy, c
 🟦 **Status:** pre-release (v0.x). The file format, `towproj.github.io/v1alpha1`, may still change before v1.
 
 ## Install
-From v0.1.0: apt, dnf, Homebrew, release binaries or `go install` ([docs/install.md](docs/install.md)). Until then, build it (Go 1.26 or newer):
+With apt, dnf, Homebrew, a release binary or `go install`: see [docs/install.md](docs/install.md). Or build it (Go 1.26 or newer):
 ```bash
 git clone https://github.com/towproj/tow.git
 cd tow
-go build -o tow
-./tow --help
+go build -o tow && sudo install tow /usr/local/bin/
+tow --help
 ```
 
 ## Quick start: a local cluster
-Needs Docker and [k3d](https://k3d.io/#installation):
+Needs Docker and [k3d](https://k3d.io/#installation). The example files are in this repository (`git clone https://github.com/towproj/tow.git && cd tow`):
 ```bash
-./tow apply -f examples/local.yaml --dry-run   # shows what it would do; creates nothing
-./tow apply -f examples/local.yaml             # cluster "dev"; kubectl switches to context "dev"
-./tow status --name dev                        # machines, nodes, and any pod that's stuck
-./tow delete --name dev                        # removes the cluster and its kubeconfig context
+tow apply -f examples/local.yaml --dry-run   # shows what it would do; creates nothing
+tow apply -f examples/local.yaml             # cluster "dev"; kubectl switches to context "dev"
+tow status --name dev                        # machines, nodes, and any pod that's stuck
+tow delete --name dev                        # removes the cluster and its kubeconfig context
 ```
 Add `--verbose` to any command to see what tow runs (secrets are always hidden).
 
@@ -51,7 +51,7 @@ spec:
       machines: [{host: 192.168.1.11}, {host: 192.168.1.12}]
 ```
 ```bash
-./tow apply -f lab.yaml        # lists what it will change on your machines, asks, then builds the cluster
+tow apply -f lab.yaml        # lists what it will change on your machines, asks, then builds the cluster
 ```
 Every field, flavor and add-on: [docs/cluster-file.md](docs/cluster-file.md). Ready-made files for every platform: [examples/](examples/).
 
