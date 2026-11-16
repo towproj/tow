@@ -1,6 +1,10 @@
 name: CI
 on: [push, pull_request]
 
+# CI only reads the repository.
+permissions:
+  contents: read
+
 # A new push stops the run still going for the same branch or pull request; main keeps every run.
 concurrency:
   group: ci-${{ github.ref }}
