@@ -27,11 +27,12 @@ jobs:
     name: site # CI has a job called build too; required checks go by this name
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { fetch-depth: 0 } # each page's last change, from git
-      - uses: actions/setup-go@v7 # Hugo fetches Docsy as a Go module
+      # Hugo fetches Docsy as a Go module.
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with: { go-version: '1.26', cache: false }
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with: { node-version: 26, cache: npm, cache-dependency-path: website/package-lock.json }
       - name: Hugo
         run: |
@@ -48,7 +49,7 @@ jobs:
           npm run hugo -- --minify --baseURL "$SITE_URL/" --destination ../site
       # Every link between pages and every heading they point to. Links out of the site
       # aren't checked here: they'd make pull requests fail on other sites' outages.
-      - uses: lycheeverse/lychee-action@v2.9.0
+      - uses: lycheeverse/lychee-action@e7477775783ea5526144ba13e8db5eec57747ce8 # v2.9.0
         with:
           args: --offline --no-progress --include-fragments --index-files index.html --root-dir ${{ runner.temp }}/check '${{ runner.temp }}/check/**/*.html'
           fail: true
@@ -73,7 +74,7 @@ jobs:
           sudo apt-get update -qq && sudo apt-get install -y -qq apt-utils createrepo-c
           scripts/package-repos.sh pkgs site "$SITE_URL"
       - if: github.event_name != 'pull_request' && !github.event.repository.private
-        uses: actions/upload-pages-artifact@v5
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with: { path: site }
 
   deploy:
@@ -88,4 +89,4 @@ jobs:
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - id: deploy
-        uses: actions/deploy-pages@v5
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
