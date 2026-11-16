@@ -4,6 +4,9 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Fixed
+- Releases publish the Homebrew cask themselves again: v0.1.0's release stopped before it (a token setting GoReleaser refuses), and its cask's quarantine step was in the wrong syntax. v0.1.0's cask was written by hand and installs on Apple Silicon and Intel Macs.
+
 ## [0.1.0] - 2026-11-16
 The first release.
 

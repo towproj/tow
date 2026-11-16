@@ -43,6 +43,14 @@ jobs:
         with:
           version: ${{ env.GORELEASER_VERSION }}
           args: release --snapshot --clean
+      # The cask as a release would push it: valid Ruby, and the quarantine step in Homebrew's
+      # step syntax (v0.1.0's hand-checked cask failed on both).
+      - name: The Homebrew cask
+        run: |
+          cask=dist/homebrew/Casks/tow.rb
+          ruby -c "$cask"
+          grep -q '^  postflight_steps do$' "$cask"
+          grep -qF '"{{staged_path}}/tow"' "$cask"
       - name: The apt and yum repositories
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq apt-utils createrepo-c
