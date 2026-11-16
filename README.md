@@ -7,6 +7,7 @@
 
 <p align="center">
   <a href="https://www.bestpractices.dev/projects/16808"><img alt="OpenSSF Best Practices" src="https://www.bestpractices.dev/projects/16808/badge"></a>
+  <a href="https://codecov.io/gh/towproj/tow"><img alt="Test coverage" src="https://codecov.io/gh/towproj/tow/graph/badge.svg"></a>
 </p>
 
 > One file describes your Kubernetes cluster; tow builds it, keeps it as described, and takes it down.

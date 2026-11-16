@@ -13,6 +13,9 @@ concurrency:
 jobs:
   test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # the coverage upload proves which repository it comes from (OIDC)
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
@@ -32,8 +35,19 @@ jobs:
       # With the race detector: tow works on several machines at once. The runner has a
       # C compiler (cgo) and the memory the AWS SDK's packages need under -race.
       - name: Unit tests
-        run: go test -race -v -short ./internal/... ./cmd/...
-      
+        run: go test -race -v -short -coverprofile=coverage.out ./internal/... ./cmd/...
+
+      # Unit-test coverage to Codecov (codecov.yml): a comment on each pull request, the
+      # history, the README badge. Pull requests from forks get no OIDC token, so they skip it.
+      - name: Coverage to Codecov
+        if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
+        with:
+          use_oidc: true
+          files: coverage.out
+          disable_search: true
+          fail_ci_if_error: true
+
       - name: Integration tests
         run: go test -v ./integration/... -timeout 10m
         env: { INTEGRATION: "1" }
