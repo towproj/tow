@@ -1,0 +1,36 @@
+# A Postgres database that survives losing a zone, on AWS: kubeadm on four t3.small (a control
+# plane and three workers). tow puts its machines in the region's zones in turn, so the
+# three workers are in three different zones. The CloudNativePG operator (its chart) runs
+# Postgres with one instance per worker (manifests/postgres.yaml), each on its own EBS volume
+# in its own zone: an EBS volume never leaves its zone, so the database copies the data, not
+# the disks. If the primary's zone (its machine) goes away, a replica in another zone takes
+# over within a minute, and apps keep reaching it through the Service db-rw.
+# Remove everything, the volumes too, with: tow delete --name pg-aws -v
+apiVersion: towproj.github.io/v1alpha1
+kind: Cluster
+metadata:
+  name: pg-aws
+spec:
+  kubernetes:
+    distribution: kubeadm
+    networking:
+      cni: flannel
+    storage:
+      csi: [aws-ebs]
+    addons:
+      helmCharts:
+        - name: cnpg
+          repo: https://cloudnative-pg.github.io/charts
+          chart: cloudnative-pg
+          version: 0.29.1                 # operator 1.30.1
+          namespace: cnpg-system
+      manifests: [manifests/postgres.yaml]
+  infrastructure:
+    provider: aws
+    aws: {region: eu-west-3}           # three zones
+  controlPlane:
+    instanceType: t3.small
+  workers:
+    - name: db
+      count: 3
+      instanceType: t3.small

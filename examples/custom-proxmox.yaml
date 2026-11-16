@@ -1,0 +1,32 @@
+# No flavor: kubeadm with flannel on Proxmox, one control plane and two worker pools of
+# different sizes, and nothing else installed. Addresses match the test lab in
+# docs/testing/proxmox.md.
+apiVersion: towproj.github.io/v1alpha1
+kind: Cluster
+metadata:
+  name: custom-pve
+spec:
+  kubernetes:
+    distribution: kubeadm
+    networking:
+      cni: flannel
+  infrastructure:
+    provider: proxmox
+    proxmox:
+      url: https://192.168.100.10:8006
+      node: pve
+      template: 9000
+    network:
+      subnet: 192.168.100.0/24
+      addresses: 192.168.100.20-192.168.100.29
+      gateway: 192.168.100.1
+      dns: [1.1.1.1]
+  controlPlane:
+    count: 1
+  workers:
+    - name: small
+      count: 1
+    - name: big
+      count: 1
+      resources: {cpu: 3, memory: 2Gi}   # fits the lab; give it more on real hardware
+      disk: 25Gi

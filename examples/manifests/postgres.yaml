@@ -1,0 +1,18 @@
+# A Postgres cluster run by the CloudNativePG operator (a chart in the cluster file): three
+# instances, each on its own machine, each with its own volume. The database copies every write
+# from the primary to the replicas; if the primary's machine goes away, a replica takes over.
+# Apps reach the primary through the Service db-rw (db-ro for the replicas), never a volume.
+# Objects here go into namespace "postgres", named after this file.
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: db
+spec:
+  instances: 3
+  storage:
+    storageClass: aws-ebs
+    size: 1Gi
+  affinity:
+    enablePodAntiAffinity: true
+    podAntiAffinityType: required    # never two instances on one machine
+    topologyKey: kubernetes.io/hostname

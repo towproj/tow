@@ -1,0 +1,31 @@
+# Three control planes on three new Proxmox VE VMs (2 CPUs, 2Gi, 20Gi disk each by default),
+# behind kube-vip: 192.168.100.100 is a virtual IP that one control plane holds at a time, and
+# another takes over when that one goes away. Workloads run on the control planes; no workers.
+# Upstream Kubernetes with kubeadm and flannel, nothing else. For k3s, set distribution: k3s.
+# The addresses match the test lab in docs/testing/proxmox.md: the virtual IP must be a free
+# address on the VMs' network, outside their range. The API token comes from
+# PROXMOX_VE_API_TOKEN, never this file. Remove everything with: tow delete --name ha-pve
+apiVersion: towproj.github.io/v1alpha1
+kind: Cluster
+metadata:
+  name: ha-pve
+spec:
+  kubernetes:
+    distribution: kubeadm
+    apiEndpoint: 192.168.100.100:6443  # kube-vip's virtual IP; the kubeconfig uses it
+    networking:
+      cni: flannel
+  infrastructure:
+    provider: proxmox
+    proxmox:
+      url: https://192.168.100.10:8006
+      node: pve                      # the Proxmox server the VMs run on
+      template: 9000                 # ID of the Ubuntu 24.04 cloud-init template
+    network:
+      subnet: 192.168.100.0/24
+      addresses: 192.168.100.20-192.168.100.29   # VMs get these in order
+      gateway: 192.168.100.1
+      dns: [1.1.1.1]
+  controlPlane:
+    count: 3                         # an odd number: etcd keeps working with one of them down
+    schedulable: true                # no workers, so workloads run here

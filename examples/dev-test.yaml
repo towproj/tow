@@ -1,0 +1,20 @@
+# Upstream kubeadm cluster for staging or CI, on existing servers. One control plane, no HA.
+# The hosts are placeholders: replace them with your servers' addresses.
+apiVersion: towproj.github.io/v1alpha1
+kind: Cluster
+metadata:
+  name: staging
+spec:
+  flavor: dev-test                   # optional preset: kubeadm + calico, local-path, traefik, metrics-server
+  kubernetes:
+    version: v1.37.2                 # pinned; left out: the release tow tests (v1.37.2); "stable": the newest
+  infrastructure:
+    provider: byoh
+    access:
+      ssh: {user: ubuntu}
+  controlPlane:
+    machines:
+      - host: 10.0.1.10
+  workers:
+    - machines:
+        - host: 10.0.1.20

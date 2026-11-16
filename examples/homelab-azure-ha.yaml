@@ -1,0 +1,21 @@
+# Three k3s control planes on Azure, one per availability zone, behind two Standard load
+# balancers: a public one for kubectl (open to your address only) and an internal one for the
+# nodes. A machine behind an Azure internal load balancer can't always reach it (Azure drops
+# the connection when it would land on the machine itself), so the nodes reach the API by a
+# name each one resolves in /etc/hosts: a worker to the internal load balancer, a control
+# plane to itself. About $0.20/hour while it runs; remove it with:
+# tow delete --name lab-azure-ha
+apiVersion: towproj.github.io/v1alpha1
+kind: Cluster
+metadata:
+  name: lab-azure-ha
+spec:
+  flavor: homelab                    # optional preset: k3s with its bundled extras
+  infrastructure:
+    provider: azure
+    azure: {subscription: 00000000-0000-0000-0000-000000000000, location: swedencentral}
+  controlPlane:
+    count: 3
+  workers:
+    - name: general
+      count: 1

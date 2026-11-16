@@ -1,0 +1,31 @@
+# k3s with Calico's eBPF dataplane on two new Proxmox VE VMs. eBPF replaces kube-proxy, so
+# k3s runs without it and Calico is given the API's real address. VXLAN is the overlay
+# Calico recommends for eBPF; IPIP doesn't work with it. Needs kernel 5.10 or newer (Ubuntu
+# 22.04+). Remove everything with: tow delete --name calico-ebpf-pve
+apiVersion: towproj.github.io/v1alpha1
+kind: Cluster
+metadata:
+  name: calico-ebpf-pve
+spec:
+  kubernetes:
+    distribution: k3s
+    networking:
+      cni: calico
+      calico:
+        dataplane: ebpf
+        encapsulation: vxlan
+  infrastructure:
+    provider: proxmox
+    proxmox:
+      url: https://192.168.100.10:8006
+      node: pve
+      template: 9000
+    network:
+      subnet: 192.168.100.0/24
+      addresses: 192.168.100.20-192.168.100.29
+      gateway: 192.168.100.1
+      dns: [1.1.1.1]
+  controlPlane:
+    schedulable: "true"             # workloads on both VMs, so pods talk across nodes
+  workers:
+    - count: 1

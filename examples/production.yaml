@@ -1,0 +1,24 @@
+# Highly available kubeadm cluster on existing servers: 3 control planes behind a virtual IP.
+# The hosts are placeholders: replace them with your servers' addresses.
+apiVersion: towproj.github.io/v1alpha1
+kind: Cluster
+metadata:
+  name: prod
+spec:
+  flavor: production                 # optional preset: kubeadm + cilium, longhorn, traefik, metrics-server
+  kubernetes:
+    apiEndpoint: 10.0.0.100:6443     # free address for the control planes' virtual IP (kube-vip), or your load balancer
+  infrastructure:
+    provider: byoh
+    access:
+      ssh: {user: ubuntu}
+  controlPlane:
+    machines:
+      - host: 10.0.0.11
+      - host: 10.0.0.12
+      - host: 10.0.0.13
+  workers:
+    - machines:
+        - host: 10.0.0.21
+        - host: 10.0.0.22
+          ssh: {user: admin}         # per-machine override; the rest comes from access.ssh

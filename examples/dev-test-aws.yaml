@@ -1,0 +1,18 @@
+# Smallest AWS setup that can run kubeadm: two t3.small servers (2 vCPU, 2 GB) in a new VPC
+# with public subnets only (no NAT gateway, no load balancer). About $0.06/hour while it runs;
+# remove it with: tow delete --name dev-aws
+apiVersion: towproj.github.io/v1alpha1
+kind: Cluster
+metadata:
+  name: dev-aws
+spec:
+  flavor: dev-test                   # optional preset: kubeadm + calico, local-path, traefik, metrics-server; 1 control plane + 1 worker
+  infrastructure:
+    provider: aws
+    aws: {region: eu-west-3}
+  controlPlane:
+    instanceType: t3.small
+  workers:
+    - name: general
+      count: 1
+      instanceType: t3.small

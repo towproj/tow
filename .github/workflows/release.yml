@@ -1,0 +1,127 @@
+name: Release
+# On a pull request: every platform and package built as a snapshot (nothing signed or
+# published), the packages installed on Ubuntu, Debian, Rocky Linux and AlmaLinux, and
+# tow built and unit-tested on macOS. On a v* tag: the real release, once the
+# repository is public (signatures and provenance name it in public logs).
+on:
+  pull_request:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  GORELEASER_VERSION: v2.20.2
+
+jobs:
+  snapshot:
+    if: github.event_name != 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-go@v7
+        with: { go-version: '1.26' }
+      - uses: anchore/sbom-action/download-syft@v0.24.3
+      # The repositories get a key that lives for this run only; the real one signs releases.
+      - name: A throwaway signing key
+        run: |
+          gpg --batch --passphrase '' --quick-gen-key 'tow CI (throwaway) <ci@invalid>' rsa3072 sign 1d
+          key=$(gpg --list-secret-keys --with-colons | awk -F: '/^fpr/ {print $10; exit}')
+          gpg --armor --export-secret-keys "$key" > "$RUNNER_TEMP/signing.asc"
+          echo "GPG_KEY_ID=$key" >> "$GITHUB_ENV"
+          echo "RPM_SIGNING_KEY_FILE=$RUNNER_TEMP/signing.asc" >> "$GITHUB_ENV"
+      # A snapshot signs the .rpm files but runs no cosign (.goreleaser.yaml).
+      - uses: goreleaser/goreleaser-action@v7
+        with:
+          version: ${{ env.GORELEASER_VERSION }}
+          args: release --snapshot --clean
+      - name: The apt and yum repositories
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq apt-utils createrepo-c
+          scripts/package-repos.sh dist site file:///site
+      - uses: actions/upload-artifact@v7
+        with:
+          name: site
+          path: site
+          retention-days: 7
+
+  packages:
+    needs: snapshot
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ["ubuntu:24.04", "debian:12", "rockylinux/rockylinux:9", "almalinux:10"]
+    container: ${{ matrix.image }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with: { name: site, path: site }
+      # Added the way a user adds them; apt and dnf check every signature.
+      - name: Install tow from the repositories
+        run: scripts/test-package-repos.sh site
+
+  macos:
+    if: (github.event_name == 'pull_request' && github.base_ref == 'main') || startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with: { go-version: '1.26' }
+      - name: Build
+        run: go build -o tow . && ./tow version
+      - name: Unit tests
+        run: go test -short ./internal/... ./cmd/...
+
+  release:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && !github.event.repository.private
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write      # the GitHub release
+      id-token: write      # cosign keyless signing
+      attestations: write  # build provenance
+    steps:
+      - uses: actions/checkout@v7
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-go@v7
+        with: { go-version: '1.26' }
+      - uses: anchore/sbom-action/download-syft@v0.24.3
+      - uses: sigstore/cosign-installer@v4.1.3
+      - name: The packages' signing key
+        env: { KEY: "${{ secrets.PACKAGES_SIGNING_KEY }}" }
+        run: |
+          umask 077
+          printf '%s\n' "$KEY" > "$RUNNER_TEMP/signing.asc"
+          echo "RPM_SIGNING_KEY_FILE=$RUNNER_TEMP/signing.asc" >> "$GITHUB_ENV"
+      - uses: goreleaser/goreleaser-action@v7
+        with:
+          version: ${{ env.GORELEASER_VERSION }}
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+      - name: Forget the key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/signing.asc"
+      - uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: |
+            dist/*.tar.gz
+            dist/*.deb
+            dist/*.rpm
+            dist/checksums.txt
+
+  # The site again, with the apt and yum repositories now holding this release (pages.yml:
+  # rebuilt from the last five releases, nothing kept in git). A release made with the
+  # workflow's own token starts no other workflow, so it's called from here.
+  pages:
+    needs: release
+    uses: ./.github/workflows/pages.yml
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    secrets: inherit

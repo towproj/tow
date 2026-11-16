@@ -1,0 +1,8 @@
+# A folder of manifests: tow applies every file in it (kubectl apply --recursive). Objects
+# that name no namespace go into one named after the folder, "shop".
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: shop-settings
+data:
+  currency: EUR

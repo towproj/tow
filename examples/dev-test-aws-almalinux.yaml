@@ -1,0 +1,22 @@
+# kubeadm on two t3.small AWS servers running AlmaLinux 9 (AlmaLinux's own images: free, no
+# Marketplace subscription; login user ec2-user). tow prepares them with dnf, sets SELinux
+# to permissive as kubeadm's install page does, and installs kubelet, kubeadm and kubectl from
+# pkgs.k8s.io's rpm repository. The control plane has 4 GiB (c7i-flex.large, which AWS's free
+# plan allows): AlmaLinux keeps memory aside for kdump, which leaves a 2 GiB t3.small under
+# kubeadm's 1700 MB. About $0.12/hour while it runs; remove it with: tow delete --name dev-alma
+apiVersion: towproj.github.io/v1alpha1
+kind: Cluster
+metadata:
+  name: dev-alma
+spec:
+  flavor: dev-test                   # optional preset: kubeadm + calico, local-path, traefik, metrics-server; 1 control plane + 1 worker
+  infrastructure:
+    provider: aws
+    os: almalinux-9
+    aws: {region: eu-west-3}
+  controlPlane:
+    instanceType: c7i-flex.large
+  workers:
+    - name: general
+      count: 1
+      instanceType: t3.small

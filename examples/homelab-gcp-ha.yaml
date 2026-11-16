@@ -1,0 +1,20 @@
+# Three k3s control planes on GCP, one per zone, behind two passthrough network load balancers:
+# an external one for kubectl (open to your address only) and an internal one for the nodes.
+# A machine behind a GCP load balancer can't reach it (Google routes the address back to the
+# machine itself), so the nodes reach the API by a name each one resolves in /etc/hosts: a
+# worker to the internal load balancer, a control plane to itself. Add workers as you like;
+# this one has none, to fit a free trial's 4 public addresses (3 machines + the load
+# balancer). About $0.15/hour while it runs; remove it with: tow delete --name lab-gcp-ha
+apiVersion: towproj.github.io/v1alpha1
+kind: Cluster
+metadata:
+  name: lab-gcp-ha
+spec:
+  flavor: homelab                    # optional preset: k3s with its bundled extras
+  infrastructure:
+    provider: gcp
+    gcp: {project: my-project-123456, region: europe-west1}
+  controlPlane:
+    count: 3
+    instanceType: e2-medium
+  workers: []

@@ -1,0 +1,29 @@
+# No flavor: the whole architecture spelled out. k3s with Cilium and two control planes on
+# machines you already own, behind a virtual IP. Two control planes work but tolerate no
+# failure (tow warns); three would. Without a flavor only what's named is installed:
+# here Cilium, and none of k3s's extras (traefik, servicelb, local-path, metrics-server).
+# The hosts are placeholders: replace them with your machines' addresses.
+apiVersion: towproj.github.io/v1alpha1
+kind: Cluster
+metadata:
+  name: lab
+spec:
+  kubernetes:
+    distribution: k3s
+    apiEndpoint: 192.168.1.100:6443
+    networking:
+      cni: cilium
+  infrastructure:
+    provider: byoh
+    access:
+      ssh: {user: pi, keyPath: ~/.ssh/id_ed25519}
+  controlPlane:
+    machines:
+      - host: 192.168.1.10
+      - host: 192.168.1.11
+  workers:
+    - name: pis
+      machines:
+        - host: 192.168.1.12
+        - host: 192.168.1.13
+          ssh: {port: 2222}

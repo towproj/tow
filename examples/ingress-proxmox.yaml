@@ -1,0 +1,58 @@
+# Ingress controllers on two new Proxmox VE VMs (kubeadm, flannel), each on its own MetalLB
+# address: Traefik, which tow installs itself, and four controllers installed as their
+# own charts or manifests, because tow has nothing to add to them (docs/ingress.md):
+# F5 NGINX, HAProxy, Envoy Gateway (Gateway API) and Contour. 'make test-proxmox' sends an
+# Ingress (or a Gateway and a route) through each, from this machine.
+#
+# Without a service load balancer, a chart's controller listens on node ports instead: put
+# them in spec.infrastructure.access.ports so the firewalls let you in. The addresses match
+# the test lab in docs/testing/proxmox.md. Remove everything with: tow delete --name ingress-pve
+apiVersion: towproj.github.io/v1alpha1
+kind: Cluster
+metadata:
+  name: ingress-pve
+spec:
+  kubernetes:
+    distribution: kubeadm
+    networking:
+      cni: flannel
+    serviceLoadBalancer:
+      provider: metallb
+      metallb:
+        addresses: [192.168.100.200-192.168.100.210]
+    ingress:
+      controllers: [traefik]
+    addons:
+      helmCharts:
+        - name: nginx-ingress                # F5 NGINX Ingress Controller, class "nginx"
+          repo: oci://ghcr.io/nginx/charts
+          chart: nginx-ingress
+          version: 2.8.1
+        - name: haproxy                      # HAProxy Kubernetes Ingress, class "haproxy"
+          repo: https://haproxytech.github.io/helm-charts
+          chart: kubernetes-ingress
+          version: 1.54.4
+          # One replica (the chart runs two, 400 MiB each): one 2 GB worker must also fit
+          # Envoy Gateway's proxy (512 MiB).
+          values: {controller: {replicaCount: 1, service: {type: LoadBalancer}}}
+        - name: envoy-gateway                # Gateway API only; brings Gateway API's definitions
+          repo: oci://docker.io/envoyproxy
+          chart: gateway-helm
+          version: v1.10.0
+          namespace: envoy-gateway-system
+      manifests:
+        - {path: "https://raw.githubusercontent.com/projectcontour/contour/v1.33.8/examples/render/contour.yaml", namespace: projectcontour}
+        - manifests/ingress-classes.yaml     # IngressClass contour, GatewayClass envoy-gateway
+  infrastructure:
+    provider: proxmox
+    proxmox:
+      url: https://192.168.100.10:8006
+      node: pve
+      template: 9000
+    network:
+      subnet: 192.168.100.0/24
+      addresses: 192.168.100.20-192.168.100.29
+      gateway: 192.168.100.1
+      dns: [1.1.1.1]
+  workers:
+    - count: 1

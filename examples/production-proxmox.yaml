@@ -1,0 +1,33 @@
+# Highly available kubeadm cluster on new Proxmox VE VMs: 3 control planes and 3 workers.
+# Proxmox has no load balancer, so apiEndpoint is a free address outside the VM range:
+# tow puts the API's virtual IP on it (kube-vip).
+# The addresses are placeholders: replace them with your network's.
+apiVersion: towproj.github.io/v1alpha1
+kind: Cluster
+metadata:
+  name: prod-pve
+spec:
+  flavor: production                 # optional preset: kubeadm + cilium, longhorn, traefik, metrics-server; 3 control planes
+  kubernetes:
+    apiEndpoint: 192.168.1.100:6443
+  infrastructure:
+    provider: proxmox
+    proxmox:
+      url: https://192.168.1.10:8006
+      node: pve
+      template: 9000
+      storage: local-lvm             # optional, this is the default
+      bridge: vmbr0                  # optional, this is the default
+    network:
+      subnet: 192.168.1.0/24
+      addresses: 192.168.1.110-192.168.1.129
+      gateway: 192.168.1.1
+      dns: [192.168.1.1]
+  controlPlane:
+    resources: {cpu: 2, memory: 4Gi}
+    disk: 40Gi
+  workers:
+    - name: general
+      count: 3
+      resources: {cpu: 4, memory: 8Gi}
+      disk: 50Gi

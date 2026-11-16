@@ -1,0 +1,116 @@
+# Every field of the Kubernetes part, on machines you already own (the hosts are
+# placeholders). No flavor: everything installed is named here. Only what the distribution
+# and provider support is accepted; tow explains any refusal.
+#
+# This version installs k3d locally, and k3s or kubeadm on machines. kubeadm with kube-vip in
+# front of several control planes, as this file asks, is refused until tow supports it;
+# apply also lists what else it doesn't install yet.
+apiVersion: towproj.github.io/v1alpha1
+kind: Cluster
+metadata:
+  name: full
+spec:
+  kubernetes:
+    distribution: kubeadm             # k3s | kubeadm | k3d (local only)
+    version: v1.37.2                  # left out: v1.37.2, the release tow tests; "stable": the newest
+    # kubeadm only (k3s brings its own containerd). A machine that already has the runtime keeps
+    # it when it goes with this Kubernetes; otherwise apply stops before changing anything.
+    containerRuntime: containerd      # containerd (default) | cri-o
+    containerd: {version: 2.3.7}      # left out: 2.3.7; must be a release containerd recommends for the Kubernetes minor
+    # cri-o: {version: 1.37.2}        # left out: the newest of the Kubernetes minor, which it must match
+    apiEndpoint: 192.168.1.100:6443   # several control planes: a free address for the API
+    apiLoadBalancer: kube-vip         # what serves it: kube-vip (default) | external (your own load balancer)
+
+    # Flags passed as written to each component; the component judges them. A list repeats
+    # the flag. A flag that needs a secret names an environment variable instead:
+    #   some-flag: {env: MY_VARIABLE}
+    apiServer:
+      certSANs: [k8s.lab.example.com]  # apiEndpoint and node addresses are added automatically
+      extraArgs:
+        audit-log-maxage: 30
+        service-account-issuer: [https://k8s.lab.example.com, https://kubernetes.default.svc]
+    controllerManager: {extraArgs: {node-monitor-grace-period: 40s}}
+    scheduler: {extraArgs: {v: 2}}
+    etcd: {extraArgs: {quota-backend-bytes: "8589934592"}}
+    kubelet: {extraArgs: {max-pods: 150}}   # every node; pools below may override
+    # k3s only: k3s's own flags, for servers and agents
+    # k3s:
+    #   server: {extraArgs: {secrets-encryption: true, etcd-s3-secret-key: {env: S3_SECRET_KEY}}}
+    #   agent: {extraArgs: {flannel-iface: eth1}}
+
+    networking:
+      podCIDR: 10.244.0.0/16
+      serviceCIDR: 10.96.0.0/12
+      clusterDomain: cluster.local
+      cni: cilium                     # flannel | calico | cilium | none
+      cilium: {version: 1.18.4, kubeProxyReplacement: true, encryption: wireguard}
+      # flannel: {backend: vxlan}     # vxlan | host-gw | wireguard
+      # calico: {encapsulation: vxlan}   # vxlan | vxlan-cross-subnet | ipip | ipip-cross-subnet | none
+
+    storage:                          # several drivers can coexist; each StorageClass is named after it
+      csi: [longhorn, nfs, local-path]   # local-path | openebs | longhorn | nfs | smb | rook-ceph | aws-ebs | aws-efs | proxmox
+      defaultClass: longhorn
+      longhorn: {replicas: 2}
+      nfs: {server: 192.168.1.5, path: /export/k8s}
+      # smb: {source: //nas/k8s, usernameEnv: SMB_USER, passwordEnv: SMB_PASSWORD}   # credentials from the environment
+
+    serviceLoadBalancer:              # exactly one: servicelb (k3s) | metallb | kube-vip | cilium | aws | none
+      provider: cilium
+      cilium:
+        addresses: [192.168.1.200-192.168.1.220]   # free addresses on your network
+        # mode: bgp
+        # bgp: {localASN: 64512, peers: [{address: 192.168.1.1, asn: 64513}]}
+
+    ingress:                          # built in: traefik | cilium (Ingress and Gateway API); any other controller
+      controllers: [traefik, cilium]  # is a chart of its own: addons.helmCharts (docs/ingress.md has examples)
+      defaultClass: traefik
+      traefik: {version: 42.3.2}      # the chart's version
+
+    metricsServer: {enabled: true}
+
+    addons:                           # anything else, installed last, in order
+      helmCharts:
+        - name: cert-manager
+          repo: https://charts.jetstack.io   # https:// or oci://
+          chart: cert-manager
+          version: v1.19.1                   # exact versions only
+          namespace: cert-manager
+          values: {crds: {enabled: true}}
+          # valuesFromEnv: {some.secret.value: MY_VARIABLE}   # secrets, read when you run tow
+        - name: envoy-gateway                # an ingress or Gateway controller tow doesn't build in
+          repo: oci://docker.io/envoyproxy
+          chart: gateway-helm
+          version: v1.10.0
+          namespace: envoy-gateway-system
+      manifests: [https://raw.githubusercontent.com/kubernetes/website/main/content/en/examples/application/nginx-app.yaml]
+      # local files work too, relative to this file: ./manifests/extra.yaml
+
+    kubeconfig:
+      context: full                   # default: metadata.name
+      merge: true                     # into ~/.kube/config; false = only ~/.tow/clusters/full/kubeconfig
+
+    backups:                          # etcd snapshots on each control plane (docs/backups.md)
+      schedule: "0 */6 * * *"         # as cron, the machines' time zone; left out: none (k3s: its own, every 12 h)
+      keep: 10                        # the newest kept on each control plane; default 5
+
+  infrastructure:
+    provider: byoh
+    access:
+      ssh: {user: ubuntu}
+
+  controlPlane:
+    schedulable: false                # auto (default): workloads run here only when there are no workers
+    labels: {topology.kubernetes.io/zone: rack-1, node-role.kubernetes.io/infra: ""}
+    taints: [{key: dedicated, value: control, effect: NoSchedule}]
+    machines:
+      - host: 192.168.1.10
+      - host: 192.168.1.11
+      - host: 192.168.1.12
+
+  workers:
+    - name: gpu
+      labels: {example.com/gpu: "true"}
+      taints: [{key: gpu, value: "true", effect: NoSchedule}]
+      kubelet: {extraArgs: {max-pods: 250}}   # wins over spec.kubernetes.kubelet
+      machines:
+        - host: 192.168.1.20

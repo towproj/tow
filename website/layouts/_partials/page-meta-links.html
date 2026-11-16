@@ -1,0 +1,22 @@
+{{- /*
+  Docsy's page links (view, edit, issue, print), with each page's path taken from the
+  repository's root: the pages live in ../docs, outside the site's folder, where Docsy's
+  own partial would put this machine's absolute path in the links. No "create child page":
+  new pages come through pull requests.
+*/ -}}
+{{ if .File -}}
+{{ $root := printf "%s/" (path.Dir hugo.WorkingDir) -}}
+{{ $path := strings.TrimPrefix $root .File.Filename -}}
+{{ $repo := $.Param "github_repo" -}}
+{{ $branch := $.Param "github_branch" | default "main" -}}
+<div class="td-page-meta ms-2 pb-1 pt-2 mb-0">
+{{ if and $repo (not (hasPrefix $path "/")) -}}
+  <a href="{{ printf "%s/blob/%s/%s" $repo $branch $path }}" class="td-page-meta__view" target="_blank" rel="noopener"><i class="fa-solid fa-file-lines"></i> {{ T "post_view_this" }}</a>
+  <a href="{{ printf "%s/edit/%s/%s" $repo $branch $path }}" class="td-page-meta__edit" target="_blank" rel="noopener"><i class="fa-solid fa-pen-to-square"></i> {{ T "post_edit_this" }}</a>
+  <a href="{{ printf "%s/issues/new?title=%s" $repo (urlquery $.Title) }}" class="td-page-meta__issue" target="_blank" rel="noopener"><i class="fa-solid fa-list-check"></i> {{ T "post_create_issue" }}</a>
+{{ end -}}
+{{ with .CurrentSection.AlternativeOutputFormats.Get "print" -}}
+  <a id="print" href="{{ .RelPermalink }}"><i class="fa-solid fa-print"></i> {{ T "print_entire_section" }}</a>
+{{ end -}}
+</div>
+{{ end -}}

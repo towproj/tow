@@ -1,0 +1,25 @@
+# Azure managed disks (the Azure Disk CSI driver) on two Standard_B2s_v2 VMs running AlmaLinux 9
+# (AlmaLinux's own Marketplace images: free, no terms to accept), kubeadm with
+# flannel. The driver's permissions come from a managed identity tow puts on the control
+# plane (no keys anywhere), Contributor on the cluster's resource group only; its disks are
+# StandardSSD, in that group, tagged with the cluster. 'tow delete' won't delete a cluster
+# that has such disks unless you pass -v, which deletes them with it. Remove everything with:
+# tow delete --name disk-azure -v
+apiVersion: towproj.github.io/v1alpha1
+kind: Cluster
+metadata:
+  name: disk-azure
+spec:
+  kubernetes:
+    distribution: kubeadm
+    networking:
+      cni: flannel
+    storage:
+      csi: [azure-disk]
+  infrastructure:
+    provider: azure
+    os: almalinux-9
+    azure: {subscription: 00000000-0000-0000-0000-000000000000, location: swedencentral}
+  workers:
+    - name: general
+      count: 1

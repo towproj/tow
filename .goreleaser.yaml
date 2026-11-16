@@ -1,0 +1,120 @@
+# GoReleaser (v2.20) builds every release from a v* tag: .github/workflows/release.yml.
+# On a pull request it runs as a snapshot: everything built, nothing signed or published.
+# Locally, build for this machine only (a build for every platform needs more memory than
+# a small machine has): goreleaser build --single-target --snapshot --clean
+version: 2
+project_name: tow
+
+before:
+  hooks:
+    - go mod download
+    # Shell completions, from tow itself, into the archives and the packages.
+    - sh -c 'mkdir -p completions && for s in bash zsh fish; do go run . completion "$s" > "completions/tow.$s"; done'
+
+builds:
+  - id: tow
+    main: .
+    binary: tow
+    env: [CGO_ENABLED=0]
+    goos: [linux, darwin]
+    goarch: [amd64, arm64]
+    flags: [-trimpath]
+    ldflags:
+      - -s -w
+      - -X github.com/towproj/tow/internal/version.Version=v{{ .Version }}
+      - -X github.com/towproj/tow/internal/version.Commit={{ .FullCommit }}
+      - -X github.com/towproj/tow/internal/version.Date={{ .CommitDate }}
+    # Reproducible: the files' time is the commit's, not the build's.
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
+archives:
+  - formats: [tar.gz]
+    files: [LICENSE, NOTICE, README.md, CHANGELOG.md, completions/*]
+
+checksum:
+  name_template: checksums.txt
+
+# A software bill of materials per archive (syft, SPDX).
+sboms:
+  - artifacts: archive
+
+# Keyless: GitHub's OIDC token proves which workflow signed, recorded in Sigstore's public
+# log. Real releases only: a snapshot writes a placeholder instead, so nothing reaches the
+# public log. (--skip=sign would skip the .rpm signatures too, and only GoReleaser Pro has
+# 'if' here.)
+signs:
+  - cmd: sh
+    artifacts: checksum
+    signature: "${artifact}.sigstore.json"
+    args:
+      - -c
+      - '{{ if .IsSnapshot }}echo "snapshot: not signed" > "${signature}"{{ else }}cosign sign-blob --bundle="${signature}" "${artifact}" --yes{{ end }}'
+
+nfpms:
+  - id: packages
+    package_name: tow
+    file_name_template: "{{ .ConventionalFileName }}" # tow_0.1.0_amd64.deb, tow-0.1.0-1.x86_64.rpm
+    vendor: tow
+    homepage: https://github.com/towproj/tow
+    # TODO before going public: the project's dedicated address.
+    maintainer: Anass Lasry <thetowproj@gmail.com>
+    description: |-
+      One file describes your Kubernetes cluster; tow builds it, keeps it as
+      described, and takes it down. Machines on AWS, GCP, Azure, Proxmox VE or your
+      own; k3s or kubeadm; networks, storage, load balancers and ingress.
+    license: Apache-2.0
+    formats: [deb, rpm]
+    bindir: /usr/bin
+    # Each .rpm signed with the repositories' key (dnf checks it: gpgcheck=1); the .deb files
+    # are covered by the apt repository's signed InRelease. No key set: unsigned (local builds).
+    rpm:
+      signature:
+        key_file: '{{ index .Env "RPM_SIGNING_KEY_FILE" }}'
+    contents:
+      - src: completions/tow.bash
+        dst: /usr/share/bash-completion/completions/tow
+      - src: completions/tow.zsh
+        dst: /usr/share/zsh/vendor-completions/_tow
+        packager: deb
+      - src: completions/tow.zsh
+        dst: /usr/share/zsh/site-functions/_tow
+        packager: rpm
+      - src: completions/tow.fish
+        dst: /usr/share/fish/vendor_completions.d/tow.fish
+      - src: LICENSE
+        dst: /usr/share/doc/tow/LICENSE
+      - src: NOTICE
+        dst: /usr/share/doc/tow/NOTICE
+
+# macOS through a Homebrew tap. The binary isn't signed by Apple, so the quarantine flag
+# downloads get is taken off, as GoReleaser's docs show (Apple notarization: later).
+homebrew_casks:
+  - name: tow
+    homepage: https://github.com/towproj/tow
+    description: Build Kubernetes clusters from one file, and keep them as described
+    directory: Casks
+    binaries: [tow]
+    completions:
+      bash: completions/tow.bash
+      zsh: completions/tow.zsh
+      fish: completions/tow.fish
+    repository:
+      owner: tow
+      name: homebrew-tap
+      token: '{{ index .Env "HOMEBREW_TAP_TOKEN" }}' # set on a real release only
+    hooks:
+      post:
+        install_steps: |
+          on_macos do
+            run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/tow"]
+          end
+
+release:
+  prerelease: auto
+  footer: |
+    Every change: [CHANGELOG.md](https://github.com/towproj/tow/blob/{{ .Tag }}/CHANGELOG.md).
+    Verify a download: `cosign verify-blob --bundle checksums.txt.sigstore.json --certificate-identity-regexp 'https://github.com/towproj/tow/' --certificate-oidc-issuer https://token.actions.githubusercontent.com checksums.txt`, then `sha256sum --ignore-missing -c checksums.txt`.
+
+# The release notes point to CHANGELOG.md instead of listing commits.
+changelog:
+  disable: true

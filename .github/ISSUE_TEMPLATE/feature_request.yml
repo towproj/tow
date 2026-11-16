@@ -1,0 +1,21 @@
+name: Feature request
+description: Something tow should do
+labels: [enhancement]
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: What you need
+      description: What you're trying to do, and why tow can't do it today.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: How it could look
+      description: The cluster file fields or command you have in mind, if any. Could a chart under addons.helmCharts do it already?
+  - type: dropdown
+    id: help
+    attributes:
+      label: Would you like to work on it?
+      options: ["No", "Yes, after we agree on the design"]

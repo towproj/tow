@@ -1,0 +1,33 @@
+# kube-vip gives LoadBalancer Services addresses from your pool (kube-vip-cloud-provider hands
+# them out), announced on the local network, on two new Proxmox VE VMs running k3s. With one
+# control plane there's no kube-vip in front of the API, so a kube-vip DaemonSet of its own
+# announces them, on each node's default-route interface; with several control planes behind
+# kube-vip (apiEndpoint), that kube-vip announces them too. The pool must be free addresses on
+# the VMs' network, outside their range. The addresses match the test lab in
+# docs/testing/proxmox.md. Remove everything with: tow delete --name kube-vip-lb-pve
+apiVersion: towproj.github.io/v1alpha1
+kind: Cluster
+metadata:
+  name: kube-vip-lb-pve
+spec:
+  kubernetes:
+    distribution: k3s
+    networking:
+      cni: flannel
+    serviceLoadBalancer:
+      provider: kube-vip
+      kube-vip:
+        addresses: [192.168.100.200-192.168.100.210]
+  infrastructure:
+    provider: proxmox
+    proxmox:
+      url: https://192.168.100.10:8006
+      node: pve
+      template: 9000
+    network:
+      subnet: 192.168.100.0/24
+      addresses: 192.168.100.20-192.168.100.29
+      gateway: 192.168.100.1
+      dns: [1.1.1.1]
+  workers:
+    - count: 1

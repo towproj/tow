@@ -1,0 +1,16 @@
+# Classes for controllers installed from their own charts or manifests (ingress-proxmox.yaml):
+# Contour's manifest creates no IngressClass (it serves class "contour"), and Envoy Gateway's
+# chart no GatewayClass.
+apiVersion: networking.k8s.io/v1
+kind: IngressClass
+metadata:
+  name: contour
+spec:
+  controller: projectcontour.io/contour
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: GatewayClass
+metadata:
+  name: envoy-gateway
+spec:
+  controllerName: gateway.envoyproxy.io/gatewayclass-controller

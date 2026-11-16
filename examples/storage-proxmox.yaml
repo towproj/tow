@@ -1,0 +1,47 @@
+# Every storage driver tow installs, on three new Proxmox VE VMs (one control plane, two
+# workers, 2 CPUs and 2Gi each): local-path (the default class), OpenEBS LocalPV hostpath,
+# Longhorn with two copies of each volume, NFS and SMB. Plus metrics-server and a manifest.
+# Upstream Kubernetes with kubeadm and flannel; for k3s, set distribution: k3s (it brings its
+# own local-path and metrics-server).
+#
+# The NFS and SMB addresses below are in-cluster test servers that 'make test-proxmox' starts
+# itself; put your NAS's address and share here. The SMB credentials come from the variables
+# named below, never from this file. The addresses match the test lab in
+# docs/testing/proxmox.md. Remove everything with: tow delete --name storage-pve
+apiVersion: towproj.github.io/v1alpha1
+kind: Cluster
+metadata:
+  name: storage-pve
+spec:
+  kubernetes:
+    distribution: kubeadm
+    networking:
+      cni: flannel
+    storage:
+      csi: [local-path, openebs, longhorn, nfs, smb]
+      defaultClass: local-path
+      longhorn: {replicas: 2}        # two workers: two copies of each volume
+      nfs:
+        server: nfs-server.storage-test.svc.cluster.local
+        path: /
+      smb:
+        source: //smb-server.storage-test.svc.cluster.local/share
+        usernameEnv: SMB_USER
+        passwordEnv: SMB_PASSWORD
+    metricsServer: {enabled: true}
+    addons:
+      manifests: [manifests/demo.yaml, manifests/shop]   # into namespaces "demo" and "shop" (a folder: every file in it)
+  infrastructure:
+    provider: proxmox
+    proxmox:
+      url: https://192.168.100.10:8006
+      node: pve
+      template: 9000
+    network:
+      subnet: 192.168.100.0/24
+      addresses: 192.168.100.20-192.168.100.29
+      gateway: 192.168.100.1
+      dns: [1.1.1.1]
+  workers:
+    - name: general
+      count: 2

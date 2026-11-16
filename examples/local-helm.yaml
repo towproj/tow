@@ -1,0 +1,24 @@
+# A local cluster with an app installed from a Helm chart: k3d as it ships (the local flavor),
+# then the podinfo demo app from its chart repository, two replicas, in namespace "demo".
+# tow runs helm from this machine once the cluster is ready; when helm is missing it asks
+# before installing the release it was tested with into ~/.local/bin.
+#   tow apply -f examples/local-helm.yaml
+#   kubectl -n demo port-forward svc/podinfo 9898   # then open http://localhost:9898
+apiVersion: towproj.github.io/v1alpha1
+kind: Cluster
+metadata:
+  name: dev-helm
+spec:
+  flavor: local
+  kubernetes:
+    addons:
+      helmCharts:
+        - name: podinfo
+          repo: https://stefanprodan.github.io/podinfo   # an https chart repository, or oci://...
+          chart: podinfo
+          version: 6.17.0                                # exact versions only
+          namespace: demo                                # created when missing
+          values:
+            replicaCount: 2
+          # A secret value comes from an environment variable, never this file:
+          # valuesFromEnv: {ui.message: PODINFO_MESSAGE}

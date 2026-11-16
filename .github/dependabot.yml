@@ -1,0 +1,20 @@
+# Weekly update pull requests for the Go modules and the GitHub Actions; minor and patch
+# updates come grouped, one pull request each. The OpenTofu providers and the website's npm
+# packages stay pinned by hand: CI can't prove a provider bump without real clouds.
+version: 2
+updates:
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      go:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        update-types: [minor, patch]

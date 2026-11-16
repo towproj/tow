@@ -1,0 +1,21 @@
+# Smallest GCP setup that can run kubeadm: two e2-medium machines (2 vCPU, 4 GB) in a new VPC,
+# with public addresses only (no Cloud NAT, no load balancer). About $0.08/hour while it runs
+# (machines, disks and public addresses). The project needs the Compute Engine and IAM APIs
+# (gcloud services enable compute.googleapis.com iam.googleapis.com), and tow uses your
+# Application Default Credentials (gcloud auth application-default login). Remove it with:
+# tow delete --name dev-gcp
+apiVersion: towproj.github.io/v1alpha1
+kind: Cluster
+metadata:
+  name: dev-gcp
+spec:
+  flavor: dev-test                   # optional preset: kubeadm + calico, local-path, traefik, metrics-server; 1 control plane + 1 worker
+  infrastructure:
+    provider: gcp
+    gcp: {project: my-project-123456, region: europe-west1}
+  controlPlane:
+    instanceType: e2-medium
+  workers:
+    - name: general
+      count: 1
+      instanceType: e2-medium

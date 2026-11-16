@@ -1,0 +1,25 @@
+{{- /*
+  The docs are written for GitHub: their links are relative file paths (storage.md,
+  ../examples/local.yaml). On the site, a link to another page of ../docs goes to that page;
+  a link to any other file of the repository goes to the file on GitHub.
+*/ -}}
+{{- $u := urls.Parse .Destination -}}
+{{- $href := .Destination -}}
+{{- if and (not $u.IsAbs) (ne $u.Path "") (not (hasPrefix $u.Path "/")) .PageInner.File -}}
+  {{- $root := printf "%s/" (path.Dir hugo.WorkingDir) -}}
+  {{- $src := strings.TrimPrefix $root .PageInner.File.Filename -}}
+  {{- $target := path.Clean (path.Join (path.Dir $src) $u.Path) -}}
+  {{- $frag := cond (ne $u.Fragment "") (printf "#%s" $u.Fragment) "" -}}
+  {{- $page := false -}}
+  {{- if and (hasPrefix $target "docs/") (strings.HasSuffix $target ".md") -}}
+    {{- $logical := replaceRE `(/README)?\.md$` "" $target -}}
+    {{- with site.GetPage (printf "/%s" $logical) -}}{{ $page = . }}{{- end -}}
+  {{- end -}}
+  {{- with $page -}}
+    {{- $href = printf "%s%s" .RelPermalink $frag -}}
+  {{- else -}}
+    {{- $href = printf "%s/blob/%s/%s%s" site.Params.github_repo site.Params.github_branch $target $frag -}}
+  {{- end -}}
+{{- end -}}
+<a href="{{ $href | safeURL }}"{{ with .Title }} title="{{ . }}"{{ end }}{{ if $u.IsAbs }} target="_blank" rel="noopener"{{ end }}>{{ .Text | safeHTML }}</a>
+{{- /* chomp trailing newline */ -}}

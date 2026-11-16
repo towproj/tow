@@ -1,0 +1,32 @@
+# MetalLB gives LoadBalancer Services addresses from your pool, announced on the local network
+# (layer 2), on two new Proxmox VE VMs: upstream Kubernetes with kubeadm and flannel. The pool
+# must be free addresses on the VMs' network, outside their range; your machine (the admin
+# addresses) reaches them through the VMs' firewall. For BGP instead: mode: bgp, and
+# bgp: {localASN, peers: [{address, asn}]}. The addresses match the test lab in
+# docs/testing/proxmox.md. Remove everything with: tow delete --name metallb-pve
+apiVersion: towproj.github.io/v1alpha1
+kind: Cluster
+metadata:
+  name: metallb-pve
+spec:
+  kubernetes:
+    distribution: kubeadm
+    networking:
+      cni: flannel
+    serviceLoadBalancer:
+      provider: metallb
+      metallb:
+        addresses: [192.168.100.200-192.168.100.210]
+  infrastructure:
+    provider: proxmox
+    proxmox:
+      url: https://192.168.100.10:8006
+      node: pve
+      template: 9000
+    network:
+      subnet: 192.168.100.0/24
+      addresses: 192.168.100.20-192.168.100.29
+      gateway: 192.168.100.1
+      dns: [1.1.1.1]
+  workers:
+    - count: 1

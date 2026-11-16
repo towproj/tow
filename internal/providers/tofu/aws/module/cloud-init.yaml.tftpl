@@ -1,0 +1,16 @@
+#cloud-config
+%{ if ssh_user != image_user ~}
+# The image ships only its own user (${image_user}); any other login user is created here.
+users:
+  - default
+  - name: ${ssh_user}
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    shell: /bin/bash
+    ssh_authorized_keys:
+      - ${jsonencode(ssh_public_key)}
+%{ endif ~}
+%{ if self_destruct_minutes > 0 ~}
+# Test runs only: the machine terminates itself even if 'tow delete' never runs.
+runcmd:
+  - [shutdown, -P, "+${self_destruct_minutes}", "tow test TTL reached"]
+%{ endif ~}

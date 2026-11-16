@@ -1,0 +1,24 @@
+# k3s as it ships on two new Proxmox VE VMs running Rocky Linux 10: one control plane and one
+# worker, cloned from a Rocky cloud-init template (docs/testing/proxmox.md, "A Rocky Linux
+# template"). tow prepares them with dnf, keeps SELinux enforcing (k3s installs its policy),
+# and opens firewalld for the cluster when it runs. The addresses match the test lab; change them
+# for your network. The API token comes from PROXMOX_VE_API_TOKEN, never this file.
+# Remove everything with: tow delete --name homelab-rocky
+apiVersion: towproj.github.io/v1alpha1
+kind: Cluster
+metadata:
+  name: homelab-rocky
+spec:
+  flavor: homelab                    # optional preset: k3s as it ships; 1 control plane + 1 worker
+  infrastructure:
+    provider: proxmox
+    proxmox:
+      url: https://192.168.100.10:8006
+      node: pve
+      template: 9001                 # ID of the Rocky Linux 10 cloud-init template
+      cpuType: x86-64-v3             # RHEL 10 and its rebuilds don't boot on the default x86-64-v2-AES
+    network:
+      subnet: 192.168.100.0/24
+      addresses: 192.168.100.20-192.168.100.29
+      gateway: 192.168.100.1
+      dns: [1.1.1.1]

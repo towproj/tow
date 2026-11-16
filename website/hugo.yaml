@@ -1,0 +1,61 @@
+# The documentation site: Hugo with Docsy (https://www.docsy.dev), built by
+# .github/workflows/pages.yml. The pages themselves stay in ../docs, read in place, so they
+# read the same on GitHub; this folder holds only the site around them.
+# Preview: npm ci && hugo mod npm pack && npm run hugo -- server (from this folder).
+baseURL: https://towproj.github.io/tow/
+title: tow
+locale: en-US
+enableRobotsTXT: true
+enableGitInfo: true # each page's last change, from git
+
+module:
+  proxy: direct
+  hugoVersion:
+    extended: true
+    min: 0.160.1
+  imports:
+    - path: github.com/docsy/docsy/theme
+  mounts:
+    - { source: content, target: content }
+    - { source: layouts, target: layouts }
+    - { source: assets, target: assets } # colors, fonts, code styles (assets/scss)
+    - { source: ../docs, target: content/docs, files: ["! testing/README.md"] }
+    # A folder's README.md is its section's page on the site.
+    - { source: ../docs/testing/README.md, target: content/docs/testing/_index.md }
+
+markup:
+  goldmark:
+    renderer:
+      unsafe: true # HTML in our own pages (the home page's buttons); nothing outside comes in
+  highlight:
+    noClasses: false
+
+outputs:
+  section: [HTML, RSS, print]
+
+params:
+  description: One file describes your Kubernetes cluster; tow builds it, keeps it as described, and takes it down.
+  copyright:
+    authors: Anass Lasry
+    from_year: 2026
+  github_repo: https://github.com/towproj/tow
+  github_branch: main # the page links (layouts/_partials/page-meta-links.html) and links out of ../docs
+  offlineSearch: true
+  ui:
+    showLightDarkModeMenu: true # dark unless the visitor picks light (layouts/_partials/hooks/head-end.html)
+    sidebar_menu_compact: true
+    ul_show: 1
+    breadcrumb_disable: false
+    navbar_logo: true # assets/icons/logo.svg, from ../artwork/tow-icon-dark.svg
+  links:
+    developer:
+      - name: GitHub
+        url: https://github.com/towproj/tow
+        icon: fab fa-github
+        desc: The code, issues and pull requests
+
+menu:
+  main:
+    - { name: Documentation, url: /docs/, weight: 10 }
+    - { name: Install, url: /docs/install/, weight: 20 }
+    - { name: GitHub, url: https://github.com/towproj/tow, weight: 30, pre: "<i class='fab fa-github'></i>" }

@@ -1,0 +1,43 @@
+# The Proxmox test matrix: `make test-proxmox-all` builds, checks and deletes each line's
+# cluster with TestProxmoxInfra, one at a time (each takes 5 to 12 minutes). A line is an
+# example file, then, optionally, YAML merged into its spec.kubernetes
+# (TOW_TEST_KUBERNETES): its keys win, maps merge.
+
+# Distributions and container runtimes
+homelab-proxmox.yaml
+dev-test-proxmox.yaml
+custom-proxmox.yaml
+dev-test-proxmox.yaml {containerRuntime: cri-o}
+
+# Several control planes behind kube-vip, with a failover. On k3s, kube-vip also announces the
+# Services' addresses from its DaemonSet.
+homelab-proxmox-ha.yaml
+homelab-proxmox-ha.yaml {distribution: k3s, serviceLoadBalancer: {provider: kube-vip, kube-vip: {addresses: [192.168.100.200-192.168.100.210]}}}
+
+# Networks, and each one's options
+calico-proxmox.yaml
+calico-proxmox.yaml {networking: {calico: {encapsulation: ipip}}}
+calico-proxmox.yaml {networking: {calico: {encapsulation: none}}}
+calico-proxmox.yaml {networking: {calico: {encapsulation: vxlan-cross-subnet}}}
+calico-proxmox.yaml {networking: {calico: {encapsulation: ipip-cross-subnet}}}
+calico-ebpf-proxmox.yaml
+cilium-proxmox.yaml
+homelab-proxmox.yaml {networking: {cni: cilium}}
+homelab-proxmox.yaml {networking: {flannel: {backend: host-gw}}}
+homelab-proxmox.yaml {networking: {flannel: {backend: wireguard}}}
+homelab-proxmox.yaml {networking: {cni: none}}
+
+# Storage (with a manifest folder), service load balancers, ingress
+storage-proxmox.yaml
+proxmox-csi.yaml
+metallb-proxmox.yaml
+kube-vip-lb-proxmox.yaml
+cilium-lb-proxmox.yaml
+ingress-proxmox.yaml
+cilium-ingress-proxmox.yaml
+
+# A cluster's whole life (TestProxmoxLifecycle, about an hour each): machines, add-ons, the
+# firewall, settings, a backup, an upgrade with Postgres written to throughout, a restore,
+# certificates renewed.
+lifecycle:k3s
+lifecycle:kubeadm

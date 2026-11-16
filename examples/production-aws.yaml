@@ -1,0 +1,17 @@
+# Highly available kubeadm cluster on new AWS servers created by OpenTofu: 3 control planes
+# behind a load balancer tow creates, and 3 workers. Your default SSH public key is
+# installed on every server.
+apiVersion: towproj.github.io/v1alpha1
+kind: Cluster
+metadata:
+  name: prod-aws
+spec:
+  flavor: production                 # optional preset: kubeadm + cilium, longhorn, traefik, metrics-server; 3 control planes
+  infrastructure:
+    provider: aws
+    aws: {region: eu-west-3}
+  workers:
+    - name: general
+      count: 3
+      instanceType: t3.large
+      disk: 50Gi

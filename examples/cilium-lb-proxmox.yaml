@@ -1,0 +1,34 @@
+# Cilium as the network and the service load balancer: LoadBalancer Services get addresses
+# from your pool (LB IPAM), announced on the local network (L2 announcements), on two new
+# Proxmox VE VMs running k3s. Cilium's load balancer works through its kube-proxy
+# replacement, so it's on. For BGP instead: mode: bgp, and bgp: {localASN, peers}. The pool
+# must be free addresses on the VMs' network, outside their range. The addresses match the
+# test lab in docs/testing/proxmox.md. Remove everything with: tow delete --name cilium-lb-pve
+apiVersion: towproj.github.io/v1alpha1
+kind: Cluster
+metadata:
+  name: cilium-lb-pve
+spec:
+  kubernetes:
+    distribution: k3s
+    networking:
+      cni: cilium
+      cilium:
+        kubeProxyReplacement: true
+    serviceLoadBalancer:
+      provider: cilium
+      cilium:
+        addresses: [192.168.100.200-192.168.100.210]
+  infrastructure:
+    provider: proxmox
+    proxmox:
+      url: https://192.168.100.10:8006
+      node: pve
+      template: 9000
+    network:
+      subnet: 192.168.100.0/24
+      addresses: 192.168.100.20-192.168.100.29
+      gateway: 192.168.100.1
+      dns: [1.1.1.1]
+  workers:
+    - count: 1

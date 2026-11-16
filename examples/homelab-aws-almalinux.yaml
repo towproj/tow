@@ -1,0 +1,20 @@
+# k3s as it ships on two t3.small AWS servers running AlmaLinux 9 (AlmaLinux's own images: free,
+# no Marketplace subscription). tow prepares them with dnf and keeps SELinux enforcing (k3s
+# installs its policy). About $0.05/hour while it runs; remove it with:
+# tow delete --name homelab-alma
+apiVersion: towproj.github.io/v1alpha1
+kind: Cluster
+metadata:
+  name: homelab-alma
+spec:
+  flavor: homelab                    # optional preset: k3s as it ships; 1 control plane + 1 worker
+  infrastructure:
+    provider: aws
+    os: almalinux-9                  # ubuntu-24.04 (default), almalinux-9 or almalinux-10; the login user is ec2-user
+    aws: {region: eu-west-3}
+  controlPlane:
+    instanceType: t3.small
+  workers:
+    - name: general
+      count: 1
+      instanceType: t3.small

@@ -1,0 +1,10 @@
+# Throwaway cluster on this machine: k3d runs k3s in Docker. No servers, no SSH.
+# The local flavor is k3s as it ships: flannel, traefik, servicelb, local-path and
+# metrics-server. Its kubeconfig context is "dev" (tow switches to it).
+# Add "controlPlane: {count: 3}" to try several servers, or a workers pool for agents.
+apiVersion: towproj.github.io/v1alpha1
+kind: Cluster
+metadata:
+  name: dev
+spec:
+  flavor: local

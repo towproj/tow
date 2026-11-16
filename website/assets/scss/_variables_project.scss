@@ -1,0 +1,11 @@
+// The site's colors and fonts, read by Docsy before Bootstrap.
+
+$primary: #4c5fd5; // indigo: the navigation bar, links, buttons
+$secondary: #2b3445;
+
+// Bootstrap's inline code is pink; ours is the text's own color, on a quiet chip
+// (_styles_project.scss).
+$code-color: inherit;
+$code-color-dark: inherit;
+
+$font-family-monospace: ui-monospace, "SF Mono", "Cascadia Code", "JetBrains Mono", "Fira Code", Menlo, Consolas, "Liberation Mono", monospace;

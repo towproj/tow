@@ -1,0 +1,36 @@
+# Cilium as the network, the service load balancer, the Ingress controller and the Gateway
+# API, on two new Proxmox VE VMs running k3s. tow installs Gateway API's definitions
+# before Cilium, and turns its Ingress and Gateway on with its install; they work through its
+# kube-proxy replacement and get their addresses from its pool. You write your own Gateways
+# (gatewayClassName: cilium). The addresses match the test lab in docs/testing/proxmox.md.
+# Remove everything with: tow delete --name cilium-ingress-pve
+apiVersion: towproj.github.io/v1alpha1
+kind: Cluster
+metadata:
+  name: cilium-ingress-pve
+spec:
+  kubernetes:
+    distribution: k3s
+    networking:
+      cni: cilium
+      cilium:
+        kubeProxyReplacement: true
+    serviceLoadBalancer:
+      provider: cilium
+      cilium:
+        addresses: [192.168.100.200-192.168.100.210]
+    ingress:
+      controllers: [cilium]
+  infrastructure:
+    provider: proxmox
+    proxmox:
+      url: https://192.168.100.10:8006
+      node: pve
+      template: 9000
+    network:
+      subnet: 192.168.100.0/24
+      addresses: 192.168.100.20-192.168.100.29
+      gateway: 192.168.100.1
+      dns: [1.1.1.1]
+  workers:
+    - count: 1

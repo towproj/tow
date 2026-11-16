@@ -1,0 +1,39 @@
+// Code, in light and dark mode.
+
+// Inline code: a small chip in the text's own color.
+.td-content,
+.td-box,
+.lead {
+  :not(pre) > code {
+    color: var(--bs-emphasis-color);
+    background-color: var(--bs-tertiary-bg);
+    border: 1px solid var(--bs-border-color-translucent);
+    border-radius: 0.375rem;
+    padding: 0.1em 0.35em;
+    font-size: 0.875em;
+    white-space: nowrap;
+  }
+}
+
+// Code blocks: rounded, framed, readable line height.
+.td-content .highlight {
+  border: 1px solid var(--bs-border-color-translucent);
+  border-radius: 0.5rem;
+  overflow: hidden;
+
+  pre {
+    font-size: 0.85rem;
+    line-height: 1.6;
+    padding: 1rem 1.25rem;
+  }
+}
+
+// A plain ``` block with no language: framed like the others.
+.td-content > pre:not(.chroma) {
+  background-color: var(--bs-tertiary-bg);
+  border: 1px solid var(--bs-border-color-translucent);
+  border-radius: 0.5rem;
+  padding: 1rem 1.25rem;
+  font-size: 0.85rem;
+  line-height: 1.6;
+}

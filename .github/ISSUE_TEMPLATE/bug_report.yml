@@ -1,0 +1,48 @@
+name: Bug report
+description: tow did something wrong or failed
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. A security problem? Don't file it here: see SECURITY.md.
+        Remove every secret (keys, passwords, tokens, IP addresses you'd rather keep private) from what you paste.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: The command you ran, what you expected, and what happened instead.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: Output
+      description: tow's output, ideally with --verbose (secrets are hidden in it).
+      render: text
+  - type: textarea
+    id: file
+    attributes:
+      label: Cluster file
+      description: Your tow.yaml, secrets removed.
+      render: yaml
+  - type: input
+    id: version
+    attributes:
+      label: tow version
+      description: The release, or the commit you built.
+    validations:
+      required: true
+  - type: dropdown
+    id: provider
+    attributes:
+      label: Provider
+      options: [local (k3d), aws, gcp, azure, proxmox, byoh (your own machines)]
+    validations:
+      required: true
+  - type: input
+    id: system
+    attributes:
+      label: Machines' system
+      description: Ubuntu 24.04, Rocky Linux 10, ...

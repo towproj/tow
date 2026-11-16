@@ -1,0 +1,43 @@
+# OpenSSF Scorecard: checks the repository's security practices on every push to main and
+# weekly, and publishes the results (api.scorecard.dev, the badge, and the code-scanning tab).
+# Runs only in the public towproj/tow. Scorecard refuses to publish results from a workflow with
+# workflow-level env, defaults or write permissions, so the job keeps its permissions to itself.
+name: Scorecard
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "17 4 * * 1"
+  workflow_dispatch:
+
+permissions: read-all
+
+jobs:
+  analysis:
+    # Scheduled runs carry no repository in their event, hence the name check (forks too).
+    if: ${{ github.repository == 'towproj/tow' && !github.event.repository.private }}
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write # the results go to the code-scanning tab
+      id-token: write        # publishing proves which workflow produced the results
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: ossf/scorecard-action@v2.5.0
+        with:
+          results_file: results.sarif
+          results_format: sarif
+          publish_results: true
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: scorecard-results
+          path: results.sarif
+          retention-days: 5
+
+      - uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: results.sarif

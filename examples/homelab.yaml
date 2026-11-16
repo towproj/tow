@@ -1,0 +1,20 @@
+# Lightweight k3s cluster on machines you already own (Raspberry Pis, old laptops, VMs).
+# The hosts are placeholders: replace them with your machines' addresses.
+apiVersion: towproj.github.io/v1alpha1
+kind: Cluster
+metadata:
+  name: homelab
+spec:
+  flavor: homelab                    # optional preset: k3s as it ships (flannel, traefik, servicelb, local-path, metrics-server)
+  infrastructure:
+    provider: byoh                   # bring your own hosts
+    access:
+      ssh: {user: pi}                # your SSH agent or default ~/.ssh key is used automatically
+  controlPlane:
+    machines:
+      - host: 192.168.1.10
+  workers:
+    - name: pis
+      machines:
+        - host: 192.168.1.11
+        - host: 192.168.1.12

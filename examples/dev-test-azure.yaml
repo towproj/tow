@@ -1,0 +1,20 @@
+# Smallest Azure setup that can run kubeadm: two Standard_B2s_v2 VMs (2 vCPU, 8 GiB) in a resource
+# group of their own (tow-dev-azure), with public addresses only (no NAT gateway, no load
+# balancer). About $0.10/hour while it runs (VMs, disks, public addresses). tow uses your
+# Azure login (az login, or a service principal in ARM_CLIENT_ID, ARM_TENANT_ID and
+# ARM_CLIENT_SECRET). Remove it with: tow delete --name dev-azure
+apiVersion: towproj.github.io/v1alpha1
+kind: Cluster
+metadata:
+  name: dev-azure
+spec:
+  flavor: dev-test                   # optional preset: kubeadm + calico, local-path, traefik, metrics-server; 1 control plane + 1 worker
+  infrastructure:
+    provider: azure
+    azure: {subscription: 00000000-0000-0000-0000-000000000000, location: swedencentral}
+  controlPlane:
+    instanceType: Standard_B2s_v2
+  workers:
+    - name: general
+      count: 1
+      instanceType: Standard_B2s_v2

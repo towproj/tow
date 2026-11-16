@@ -1,0 +1,11 @@
+# The smallest file: no flavor, so tow installs Kubernetes and nothing optional. On local
+# clusters the network (flannel) is the one exception, since nothing runs without it; write
+# "kubernetes: {networking: {cni: none}}" to bring your own. Compare with local.yaml, which
+# adds k3s's extras (traefik, servicelb, local-path, metrics-server) through its flavor.
+apiVersion: towproj.github.io/v1alpha1
+kind: Cluster
+metadata:
+  name: bare
+spec:
+  infrastructure:
+    provider: local

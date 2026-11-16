@@ -1,0 +1,71 @@
+name: CI
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: { go-version: '1.26' }
+      
+      - name: Install k3d
+        run: curl -s https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
+      
+      # With the race detector: tow works on several machines at once. The runner has a
+      # C compiler (cgo) and the memory the AWS SDK's packages need under -race.
+      - name: Unit tests
+        run: go test -race -v -short ./internal/... ./cmd/...
+      
+      - name: Integration tests
+        run: go test -v ./integration/... -timeout 10m
+        env: { INTEGRATION: "1" }
+      
+      - name: Cleanup orphaned clusters
+        if: always()
+        run: |
+          for cluster in $(k3d cluster list -o json | jq -r '.[].name' | grep '^test-'); do
+            k3d cluster delete "$cluster" || true
+          done
+
+  secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 } # scan the whole history, not just the pushed commit
+
+      - name: Install gitleaks
+        env:
+          GITLEAKS_VERSION: 8.21.2
+          GITLEAKS_SHA256: 5bc41815076e6ed6ef8fbecc9d9b75bcae31f39029ceb55da08086315316e3ba
+        run: |
+          curl -sSfL -o gitleaks.tar.gz "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          echo "${GITLEAKS_SHA256}  gitleaks.tar.gz" | sha256sum -c -
+          tar -xzf gitleaks.tar.gz gitleaks
+
+      - name: Scan for secrets
+        run: ./gitleaks git --redact --verbose .
+
+  tofu:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: opentofu/setup-opentofu@v2
+        with: { tofu_version: 1.13.9, tofu_wrapper: false }
+
+      # Offline checks only: no cloud credentials exist in CI.
+      - name: Validate cloud modules
+        run: |
+          for m in internal/providers/tofu/*/module/; do
+            tofu -chdir="$m" fmt -check -diff
+            tofu -chdir="$m" init -backend=false -input=false
+            tofu -chdir="$m" validate
+          done
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: { go-version: '1.26' }
+      - run: go build -o tow

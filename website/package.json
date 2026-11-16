@@ -1,0 +1,15 @@
+{
+  "name": "tow-website",
+  "description": "The tow documentation site (Hugo and Docsy)",
+  "private": true,
+  "license": "Apache-2.0",
+  "scripts": {
+    "hugo": "hugo"
+  },
+  "devDependencies": {
+    "sass-embedded": "1.106.1"
+  },
+  "workspaces": [
+    "packages/hugoautogen"
+  ]
+}

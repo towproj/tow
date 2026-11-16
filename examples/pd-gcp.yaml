@@ -1,0 +1,29 @@
+# Persistent disks (the GCE PD CSI driver) and Traefik on the nodes' ports, on two GCP
+# e2-medium machines (kubeadm, flannel). The driver's permissions come from a service account
+# tow puts on the control plane (no keys anywhere): it creates and attaches the disks, and
+# acts as nothing else. Its disks are pd-balanced, labeled with the cluster. With no service
+# load balancer, Traefik listens on every node's ports 80 and 443, open to your address.
+# 'tow delete' won't delete a cluster that has persistent disks unless you pass -v, which
+# deletes them with it. Remove everything with: tow delete --name pd-gcp -v
+apiVersion: towproj.github.io/v1alpha1
+kind: Cluster
+metadata:
+  name: pd-gcp
+spec:
+  kubernetes:
+    distribution: kubeadm
+    networking:
+      cni: flannel
+    storage:
+      csi: [gcp-pd]
+    ingress:
+      controllers: [traefik]
+  infrastructure:
+    provider: gcp
+    gcp: {project: my-project-123456, region: europe-west1}
+  controlPlane:
+    instanceType: e2-medium
+  workers:
+    - name: general
+      count: 1
+      instanceType: e2-medium

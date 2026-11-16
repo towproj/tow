@@ -1,0 +1,89 @@
+name: Pages
+# The project's site on GitHub Pages: the documentation (website/, reading docs/) at the root,
+# and the apt and yum repositories (/apt, /rpm) rebuilt from the last five releases. Built
+# and link-checked on every pull request; deployed on every merge to main and after every
+# release (release.yml calls it), once the repository is public: Pages needs it public.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_call:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  HUGO_VERSION: 0.170.0
+  SITE_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with: { fetch-depth: 0 } # each page's last change, from git
+      - uses: actions/setup-go@v7 # Hugo fetches Docsy as a Go module
+        with: { go-version: '1.26', cache: false }
+      - uses: actions/setup-node@v7
+        with: { node-version: 26, cache: npm, cache-dependency-path: website/package-lock.json }
+      - name: Hugo
+        run: |
+          cd "$RUNNER_TEMP"
+          tarball=hugo_extended_${HUGO_VERSION}_linux-amd64.tar.gz
+          curl -sSfLO "https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/${tarball}"
+          curl -sSfL "https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}/hugo_${HUGO_VERSION}_checksums.txt" | grep " ${tarball}$" | sha256sum -c -
+          tar -xzf "$tarball" hugo && sudo install hugo /usr/local/bin/ && hugo version
+      - name: The documentation
+        working-directory: website
+        run: |
+          npm ci
+          npm run hugo -- --minify --baseURL / --destination "$RUNNER_TEMP/check"
+          npm run hugo -- --minify --baseURL "$SITE_URL/" --destination ../site
+      # Every link between pages and every heading they point to. Links out of the site
+      # aren't checked here: they'd make pull requests fail on other sites' outages.
+      - uses: lycheeverse/lychee-action@v2.9.0
+        with:
+          args: --offline --no-progress --include-fragments --index-files index.html --root-dir ${{ runner.temp }}/check '${{ runner.temp }}/check/**/*.html'
+          fail: true
+          jobSummary: true
+      - name: The apt and yum repositories
+        if: github.event_name != 'pull_request' && !github.event.repository.private
+        env:
+          GH_TOKEN: ${{ github.token }}
+          KEY: ${{ secrets.PACKAGES_SIGNING_KEY }}
+        run: |
+          mkdir pkgs
+          for tag in $(gh release list --limit 5 --exclude-drafts --exclude-pre-releases --json tagName --jq '.[].tagName'); do
+            gh release download "$tag" --dir pkgs --pattern '*.deb' --pattern '*.rpm'
+          done
+          if [ -z "$(ls pkgs)" ]; then
+            echo "No release yet: the site goes up without /apt and /rpm."
+            exit 0
+          fi
+          printf '%s\n' "$KEY" | gpg --batch --import
+          GPG_KEY_ID=$(gpg --list-secret-keys --with-colons | awk -F: '/^fpr/ {print $10; exit}')
+          export GPG_KEY_ID
+          sudo apt-get update -qq && sudo apt-get install -y -qq apt-utils createrepo-c
+          scripts/package-repos.sh pkgs site "$SITE_URL"
+      - if: github.event_name != 'pull_request' && !github.event.repository.private
+        uses: actions/upload-pages-artifact@v5
+        with: { path: site }
+
+  deploy:
+    needs: build
+    if: github.event_name != 'pull_request' && !github.event.repository.private
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write    # deploy the site
+      id-token: write # deploy-pages proves which workflow deploys
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v5

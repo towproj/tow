@@ -1,0 +1,32 @@
+# k3s with Calico, as Calico ships (iptables dataplane, VXLAN between nodes), on two new
+# Proxmox VE VMs: one control plane and one worker. No flavor, so nothing else is installed.
+# tow installs Calico with helm and kubectl from this machine (it offers to install them
+# when they're missing). The addresses match the test lab in docs/testing/proxmox.md.
+# Remove everything with: tow delete --name calico-pve
+apiVersion: towproj.github.io/v1alpha1
+kind: Cluster
+metadata:
+  name: calico-pve
+spec:
+  kubernetes:
+    distribution: k3s
+    networking:
+      cni: calico
+      calico:
+        encapsulation: vxlan        # default; or vxlan-cross-subnet, ipip, ipip-cross-subnet, none
+        dataplane: iptables         # default; or ebpf (see calico-ebpf-proxmox.yaml)
+  infrastructure:
+    provider: proxmox
+    proxmox:
+      url: https://192.168.100.10:8006
+      node: pve
+      template: 9000
+    network:
+      subnet: 192.168.100.0/24
+      addresses: 192.168.100.20-192.168.100.29
+      gateway: 192.168.100.1
+      dns: [1.1.1.1]
+  controlPlane:
+    schedulable: "true"             # workloads on both VMs, so pods talk across nodes
+  workers:
+    - count: 1

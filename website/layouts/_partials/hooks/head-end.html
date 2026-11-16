@@ -1,0 +1,16 @@
+{{- /*
+  Dark by default: a visitor who never picked a mode with the toggle gets dark, not their
+  system's setting. Stored as Docsy's own choice, so its toggle keeps working as usual.
+*/ -}}
+<script>
+  (function () {
+    try {
+      if (!localStorage.getItem('td-color-theme')) {
+        localStorage.setItem('td-color-theme', 'dark');
+      }
+      document.documentElement.setAttribute('data-bs-theme', localStorage.getItem('td-color-theme') === 'light' ? 'light' : 'dark');
+    } catch (e) {
+      document.documentElement.setAttribute('data-bs-theme', 'dark');
+    }
+  })();
+</script>

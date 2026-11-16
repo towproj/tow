@@ -1,0 +1,32 @@
+# k3s with Cilium on two new Proxmox VE VMs, with Cilium replacing kube-proxy and WireGuard
+# encrypting pod traffic between nodes (UDP 51871). tow installs Cilium with helm from
+# this machine (it offers to install helm when it's missing). Leave both options out to get
+# Cilium as it ships (kube-proxy kept, no encryption).
+# Remove everything with: tow delete --name cilium-pve
+apiVersion: towproj.github.io/v1alpha1
+kind: Cluster
+metadata:
+  name: cilium-pve
+spec:
+  kubernetes:
+    distribution: k3s
+    networking:
+      cni: cilium
+      cilium:
+        kubeProxyReplacement: true
+        encryption: wireguard
+  infrastructure:
+    provider: proxmox
+    proxmox:
+      url: https://192.168.100.10:8006
+      node: pve
+      template: 9000
+    network:
+      subnet: 192.168.100.0/24
+      addresses: 192.168.100.20-192.168.100.29
+      gateway: 192.168.100.1
+      dns: [1.1.1.1]
+  controlPlane:
+    schedulable: "true"             # workloads on both VMs, so pods talk across nodes
+  workers:
+    - count: 1

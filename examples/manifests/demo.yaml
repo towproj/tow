@@ -1,0 +1,9 @@
+# Applied by tow from spec.kubernetes.addons.manifests (kubectl apply --server-side).
+# Objects that name no namespace go into one named after this file, "demo", which tow
+# creates; objects that name one keep it.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: greeting
+data:
+  message: hello from tow

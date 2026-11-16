@@ -1,0 +1,21 @@
+# Upstream kubeadm cluster on two new Proxmox VE VMs (2 CPUs, 2Gi, 20Gi disk each by default),
+# cloned from a cloud-init template. The addresses match the test lab in docs/testing/proxmox.md;
+# change them for your network. The API token comes from PROXMOX_VE_API_TOKEN, never this file.
+# Remove everything with: tow delete --name dev-pve
+apiVersion: towproj.github.io/v1alpha1
+kind: Cluster
+metadata:
+  name: dev-pve
+spec:
+  flavor: dev-test                   # optional preset: kubeadm + calico, local-path, traefik, metrics-server; 1 control plane + 1 worker
+  infrastructure:
+    provider: proxmox
+    proxmox:
+      url: https://192.168.100.10:8006
+      node: pve                      # the Proxmox server the VMs run on
+      template: 9000                 # ID of the Ubuntu 24.04 cloud-init template
+    network:
+      subnet: 192.168.100.0/24
+      addresses: 192.168.100.20-192.168.100.29   # VMs get these in order, control planes first
+      gateway: 192.168.100.1
+      dns: [1.1.1.1]

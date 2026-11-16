@@ -1,0 +1,23 @@
+# Upstream kubeadm cluster on two new Proxmox VE VMs running Rocky Linux 9, cloned from a Rocky
+# cloud-init template (docs/testing/proxmox.md, "A Rocky Linux template"). tow prepares them
+# with dnf, sets SELinux to permissive as kubeadm's install page does, and installs kubelet,
+# kubeadm and kubectl from pkgs.k8s.io's rpm repository. The addresses match the test lab;
+# change them for your network. The API token comes from PROXMOX_VE_API_TOKEN, never this file.
+# Remove everything with: tow delete --name dev-rocky
+apiVersion: towproj.github.io/v1alpha1
+kind: Cluster
+metadata:
+  name: dev-rocky
+spec:
+  flavor: dev-test                   # optional preset: kubeadm + calico, local-path, traefik, metrics-server; 1 control plane + 1 worker
+  infrastructure:
+    provider: proxmox
+    proxmox:
+      url: https://192.168.100.10:8006
+      node: pve
+      template: 9002                 # ID of the Rocky Linux 9 cloud-init template (9001: Rocky 10, with cpuType: x86-64-v3)
+    network:
+      subnet: 192.168.100.0/24
+      addresses: 192.168.100.20-192.168.100.29
+      gateway: 192.168.100.1
+      dns: [1.1.1.1]
