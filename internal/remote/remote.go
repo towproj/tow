@@ -107,7 +107,11 @@ func Dial(ctx context.Context, t Target, knownHosts string) (*Client, error) {
 	}
 
 	// The handshake ignores ctx, so a deadline stops a silent server from hanging it.
-	conn.SetDeadline(time.Now().Add(dialTimeout))
+	if err := conn.SetDeadline(time.Now().Add(dialTimeout)); err != nil {
+		conn.Close()
+		closeAgent()
+		return nil, fmt.Errorf("ssh %s@%s: %w", t.User, t.addr(), err)
+	}
 	c, chans, reqs, err := ssh.NewClientConn(conn, t.addr(), &ssh.ClientConfig{
 		User:            t.User,
 		Auth:            auth,
@@ -119,7 +123,11 @@ func Dial(ctx context.Context, t Target, knownHosts string) (*Client, error) {
 		closeAgent()
 		return nil, fmt.Errorf("ssh %s@%s: %w", t.User, t.addr(), err)
 	}
-	conn.SetDeadline(time.Time{})
+	if err := conn.SetDeadline(time.Time{}); err != nil {
+		c.Close()
+		closeAgent()
+		return nil, fmt.Errorf("ssh %s@%s: %w", t.User, t.addr(), err)
+	}
 	client := &Client{ssh: ssh.NewClient(c, chans, reqs), agent: agentConn, done: make(chan struct{})}
 	go client.keepAlive()
 	return client, nil
@@ -266,7 +274,7 @@ func authMethods(keyPath string) ([]ssh.AuthMethod, net.Conn, error) {
 
 	var agentConn net.Conn
 	if sock := os.Getenv("SSH_AUTH_SOCK"); sock != "" {
-		if conn, err := net.Dial("unix", sock); err == nil {
+		if conn, err := net.Dial("unix", sock); err == nil { //nolint:gosec // the user's own SSH agent socket
 			agentConn = conn
 			if more, err := agent.NewClient(conn).Signers(); err == nil {
 				signers = append(signers, more...)

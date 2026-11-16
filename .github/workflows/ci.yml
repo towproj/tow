@@ -92,3 +92,22 @@ jobs:
           if [ -n "$unformatted" ]; then echo "Not formatted with gofmt:"; echo "$unformatted"; exit 1; fi
       - name: go vet
         run: go vet ./...
+
+  # golangci-lint with .golangci.yml: staticcheck, gosec, errcheck, unused and more.
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with: { go-version: '1.26' }
+      - name: Install golangci-lint
+        env:
+          GOLANGCI_LINT_VERSION: 2.15.0
+          GOLANGCI_LINT_SHA256: 9b7fe6a6bf6334b98decf8d86b11415ea7889afdabdd1959fdce23af2a9ebcea
+        run: |
+          archive="golangci-lint-${GOLANGCI_LINT_VERSION}-linux-amd64"
+          curl -sSfL -o lint.tar.gz "https://github.com/golangci/golangci-lint/releases/download/v${GOLANGCI_LINT_VERSION}/${archive}.tar.gz"
+          echo "${GOLANGCI_LINT_SHA256}  lint.tar.gz" | sha256sum -c -
+          tar -xzf lint.tar.gz --strip-components=1 "${archive}/golangci-lint"
+      - name: Lint
+        run: ./golangci-lint run ./...

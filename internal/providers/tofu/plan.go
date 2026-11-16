@@ -122,7 +122,7 @@ func guard(plan *tfPlan, level providers.Guard, machineType, cluster string, all
 		case (verb == "replace" || verb == "delete") && allowed != nil && allowed(rc):
 		case verb == "replace" || verb == "delete":
 			refused = append(refused, fmt.Sprintf("%s would be %sd: %s", what, verb, reason(rc, cluster)))
-		case verb == "create" && isMachine && level == providers.GuardRunning && !(allowed != nil && allowed(rc)):
+		case verb == "create" && isMachine && level == providers.GuardRunning && (allowed == nil || !allowed(rc)):
 			refused = append(refused, fmt.Sprintf("%s would be created: it is missing (deleted outside tow?)", what))
 		}
 	}

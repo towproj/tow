@@ -49,12 +49,6 @@ func Major(versionID string) int {
 	return n
 }
 
-// family is the node's family; "" when tow can't prepare it.
-func (f Facts) family() string {
-	fam, _ := Family(f.OSID, f.OSLike, f.OSVersion)
-	return fam
-}
-
 // pkg is a package as one family's tools name it.
 type pkg struct {
 	key  string // its name in Facts.Installed

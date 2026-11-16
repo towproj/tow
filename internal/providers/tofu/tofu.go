@@ -315,7 +315,7 @@ func (p *Provider) plan(ctx context.Context, spec providers.Spec) (*tfPlan, *run
 		return nil, nil, fmt.Errorf("prepare OpenTofu files: %w", err)
 	}
 	if data, err := os.ReadFile(filepath.Join(workdir(spec.Name), tfState)); err == nil {
-		if err := os.WriteFile(filepath.Join(dir, tfState), data, 0600); err != nil {
+		if err := os.WriteFile(filepath.Join(dir, tfState), data, 0600); err != nil { //nolint:gosec // tow's own work folder for a validated cluster name
 			return nil, nil, err
 		}
 	}

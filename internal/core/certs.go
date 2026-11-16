@@ -66,7 +66,8 @@ func apiCertExpiry(ctx context.Context, cluster *clientcmdapi.Cluster) (time.Tim
 			return time.Time{}, errors.New("the kubeconfig's certificate authority holds no certificate")
 		}
 	}
-	conf := &tls.Config{RootCAs: roots, ServerName: name, InsecureSkipVerify: cluster.InsecureSkipTLSVerify}
+	// The kubeconfig's own insecure-skip-tls-verify is followed, as kubectl follows it.
+	conf := &tls.Config{RootCAs: roots, ServerName: name, InsecureSkipVerify: cluster.InsecureSkipTLSVerify} //nolint:gosec // the kubeconfig's choice
 	handshake := func() (time.Time, error) {
 		dialer := &tls.Dialer{NetDialer: &net.Dialer{Timeout: 5 * time.Second}, Config: conf}
 		conn, err := dialer.DialContext(ctx, "tcp", server.Host)

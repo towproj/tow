@@ -35,8 +35,8 @@ func RangeSize(first, last netip.Addr) int {
 // fewest CIDRs, for firewalls that take no ranges. nil when it's none of those.
 func CIDRs(entry string) []string {
 	var first, last uint32
-	switch a, b, err := ParseRange(entry); {
-	case err == nil:
+	switch a, b, err := ParseRange(entry); err {
+	case nil:
 		first, last = toUint(a), toUint(b)
 	default:
 		if p, err := netip.ParsePrefix(entry); err == nil && p.Addr().Is4() {
@@ -56,7 +56,8 @@ func CIDRs(entry string) []string {
 		for size < 1<<32 && start%(size*2) == 0 && start+size*2-1 <= end {
 			size *= 2
 		}
-		out = append(out, netip.PrefixFrom(fromUint(uint32(start)), 32-bits.TrailingZeros64(size)).String())
+		block := fromUint(uint32(start)) //nolint:gosec // start <= end, and end came from a uint32
+		out = append(out, netip.PrefixFrom(block, 32-bits.TrailingZeros64(size)).String())
 		start += size
 	}
 	return out

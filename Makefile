@@ -1,4 +1,4 @@
-.PHONY: test test-integration test-aws test-aws-ha test-aws-lifecycle test-byoh-aws test-gcp test-gcp-ha test-gcp-lifecycle test-azure test-azure-ha test-azure-lifecycle test-proxmox test-lifecycle test-lifecycle-conformance test-proxmox-all test-conformance build clean hooks secrets
+.PHONY: test test-integration test-aws test-aws-ha test-aws-lifecycle test-byoh-aws test-gcp test-gcp-ha test-gcp-lifecycle test-azure test-azure-ha test-azure-lifecycle test-proxmox test-lifecycle test-lifecycle-conformance test-proxmox-all test-conformance build clean hooks secrets lint
 
 test:
 	go test -short ./...
@@ -137,3 +137,7 @@ hooks:
 # Scan the whole git history for secrets, like CI does.
 secrets:
 	gitleaks git --redact --verbose .
+
+# The linters CI runs (.golangci.yml); needs golangci-lint v2 (https://golangci-lint.run).
+lint:
+	golangci-lint run ./...

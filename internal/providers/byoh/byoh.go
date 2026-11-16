@@ -102,7 +102,11 @@ func (p *Provider) Plan(ctx context.Context, spec providers.Spec) ([]string, err
 	}
 	defer os.Remove(tmp.Name())
 	if pinned, err := os.ReadFile(knownHostsPath(spec.Name)); err == nil {
-		tmp.Write(pinned)
+		// Without them, the dry run would check the machines' keys against nothing.
+		if _, err := tmp.Write(pinned); err != nil {
+			tmp.Close()
+			return nil, err
+		}
 	}
 	tmp.Close()
 

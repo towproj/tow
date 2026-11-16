@@ -13,8 +13,8 @@ var rootCmd = &cobra.Command{
 	Use:   "tow",
 	Short: "A CLI for bootstrapping and managing Kubernetes clusters",
 	Long:  `tow simplifies Kubernetes cluster provisioning, installation, and lifecycle management. No YAML hell. Just run a command and get a working cluster.`,
-	Run: func(cmd *cobra.Command, args []string) {
-		cmd.Help()
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return cmd.Help()
 	},
 }
 
