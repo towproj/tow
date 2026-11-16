@@ -5,12 +5,14 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/base64"
 	"encoding/pem"
 	"fmt"
 	"math/big"
+	"net"
 	"net/http/httptest"
 	"os"
 	"os/exec"
@@ -26,6 +28,7 @@ import (
 	"github.com/towproj/tow/internal/runtimes"
 	"github.com/towproj/tow/internal/state"
 	"k8s.io/client-go/tools/clientcmd"
+	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 )
 
 // clientCert is a PEM client certificate that expires at notAfter.
@@ -71,6 +74,95 @@ func TestCertExpiry(t *testing.T) {
 	}
 	if got := certificatesLine(now.Add(-time.Hour), time.Time{}, now); !strings.HasPrefix(got, "Certificates: the API server's expired") {
 		t.Errorf("expired: %s", got)
+	}
+}
+
+// testCA is a certificate authority that issues the API server's certificate in tests.
+type testCA struct {
+	cert *x509.Certificate
+	key  *ecdsa.PrivateKey
+	pem  []byte
+}
+
+func newTestCA(t *testing.T) testCA {
+	t.Helper()
+	key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	tmpl := &x509.Certificate{SerialNumber: big.NewInt(1), Subject: pkix.Name{CommonName: "kubernetes"},
+		NotBefore: time.Now().Add(-72 * time.Hour), NotAfter: time.Now().Add(10 * 365 * 24 * time.Hour),
+		IsCA: true, BasicConstraintsValid: true, KeyUsage: x509.KeyUsageCertSign}
+	der, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, &key.PublicKey, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cert, _ := x509.ParseCertificate(der)
+	return testCA{cert, key, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der})}
+}
+
+// serve starts a TLS server whose certificate this CA issued for names (IP addresses or
+// DNS names), valid from notBefore to notAfter.
+func (ca testCA) serve(t *testing.T, names []string, notBefore, notAfter time.Time) *httptest.Server {
+	t.Helper()
+	key, _ := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	tmpl := &x509.Certificate{SerialNumber: big.NewInt(2), Subject: pkix.Name{CommonName: "kube-apiserver"},
+		NotBefore: notBefore, NotAfter: notAfter, ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}}
+	for _, n := range names {
+		if ip := net.ParseIP(n); ip != nil {
+			tmpl.IPAddresses = append(tmpl.IPAddresses, ip)
+		} else {
+			tmpl.DNSNames = append(tmpl.DNSNames, n)
+		}
+	}
+	der, err := x509.CreateCertificate(rand.Reader, tmpl, ca.cert, &key.PublicKey, ca.key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewUnstartedServer(nil)
+	srv.TLS = &tls.Config{Certificates: []tls.Certificate{{Certificate: [][]byte{der}, PrivateKey: key}}}
+	srv.StartTLS()
+	t.Cleanup(srv.Close)
+	return srv
+}
+
+// The API server's certificate is checked as kubectl checks it, except that an expired one
+// is still read: apply has to renew it.
+func TestAPICertExpiryChecksTheCertificate(t *testing.T) {
+	ca, other := newTestCA(t), newTestCA(t)
+	now := time.Now().Truncate(time.Second)
+	valid := []time.Time{now.Add(-time.Hour), now.Add(300 * 24 * time.Hour)}
+	expired := []time.Time{now.Add(-48 * time.Hour), now.Add(-24 * time.Hour)}
+	caFile := filepath.Join(t.TempDir(), "ca.crt")
+	os.WriteFile(caFile, ca.pem, 0o600)
+
+	withCA := clientcmdapi.Cluster{CertificateAuthorityData: ca.pem}
+	for _, c := range []struct {
+		name    string
+		srv     *httptest.Server
+		cluster clientcmdapi.Cluster // the server's address is added
+		want    time.Time
+		refused bool
+	}{
+		{"valid", ca.serve(t, []string{"127.0.0.1"}, valid[0], valid[1]), withCA, valid[1], false},
+		{"expired, still read", ca.serve(t, []string{"127.0.0.1"}, expired[0], expired[1]), withCA, expired[1], false},
+		{"the CA from a file", ca.serve(t, []string{"127.0.0.1"}, valid[0], valid[1]),
+			clientcmdapi.Cluster{CertificateAuthority: caFile}, valid[1], false},
+		{"another CA", other.serve(t, []string{"127.0.0.1"}, valid[0], valid[1]), withCA, time.Time{}, true},
+		{"issued for another name", ca.serve(t, []string{"api.example"}, valid[0], valid[1]), withCA, time.Time{}, true},
+		{"tls-server-name names it", ca.serve(t, []string{"api.example"}, valid[0], valid[1]),
+			clientcmdapi.Cluster{CertificateAuthorityData: ca.pem, TLSServerName: "api.example"}, valid[1], false},
+		{"the kubeconfig opts out", other.serve(t, []string{"127.0.0.1"}, valid[0], valid[1]),
+			clientcmdapi.Cluster{InsecureSkipTLSVerify: true}, valid[1], false},
+	} {
+		c.cluster.Server = c.srv.URL
+		got, err := apiCertExpiry(context.Background(), &c.cluster)
+		if c.refused {
+			if err == nil {
+				t.Errorf("%s: read %v, want refused", c.name, got)
+			}
+			continue
+		}
+		if err != nil || !got.Equal(c.want) {
+			t.Errorf("%s: %v, %v; want %v", c.name, got, err, c.want)
+		}
 	}
 }
 

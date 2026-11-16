@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -21,6 +22,7 @@ import (
 	"github.com/towproj/tow/internal/state"
 	"github.com/towproj/tow/internal/ui"
 	"k8s.io/client-go/tools/clientcmd"
+	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 )
 
 // Sources (read 2026-11-13), followed here:
@@ -34,6 +36,71 @@ import (
 
 // renewWithin is how close to expiring a certificate gets before apply renews it.
 const renewWithin = 30 * 24 * time.Hour
+
+// apiCertExpiry reads when the API server's certificate expires, from its TLS handshake;
+// nothing is sent over the connection. The certificate is checked as kubectl checks it
+// (signed by the kubeconfig's certificate authority, issued for the server's name), except
+// that an expired one is still accepted: apply has to read its date to renew it. It's
+// checked at its last valid second then. A kubeconfig that opts out of checking
+// (insecure-skip-tls-verify) is followed, as kubectl follows it.
+func apiCertExpiry(ctx context.Context, cluster *clientcmdapi.Cluster) (time.Time, error) {
+	server, err := url.Parse(cluster.Server)
+	if err != nil {
+		return time.Time{}, err
+	}
+	name := server.Hostname()
+	if cluster.TLSServerName != "" {
+		name = cluster.TLSServerName
+	}
+	var roots *x509.CertPool // nil: the system's
+	ca := cluster.CertificateAuthorityData
+	if len(ca) == 0 && cluster.CertificateAuthority != "" {
+		if ca, err = os.ReadFile(cluster.CertificateAuthority); err != nil {
+			return time.Time{}, err
+		}
+	}
+	if len(ca) > 0 {
+		roots = x509.NewCertPool()
+		if !roots.AppendCertsFromPEM(ca) {
+			return time.Time{}, errors.New("the kubeconfig's certificate authority holds no certificate")
+		}
+	}
+	var notAfter time.Time
+	conf := &tls.Config{
+		ServerName: name,
+		// Go's own check refuses an expired certificate; VerifyConnection makes the same
+		// checks, at a time the certificate was valid.
+		InsecureSkipVerify: true, // #nosec G402 -- verified in VerifyConnection
+		VerifyConnection: func(cs tls.ConnectionState) error {
+			if len(cs.PeerCertificates) == 0 {
+				return errors.New("the API server sent no certificate")
+			}
+			leaf := cs.PeerCertificates[0]
+			if !cluster.InsecureSkipTLSVerify {
+				at := time.Now()
+				if leaf.NotAfter.Before(at) {
+					at = leaf.NotAfter.Add(-time.Second)
+				}
+				opts := x509.VerifyOptions{Roots: roots, DNSName: name, CurrentTime: at, Intermediates: x509.NewCertPool()}
+				for _, c := range cs.PeerCertificates[1:] {
+					opts.Intermediates.AddCert(c)
+				}
+				if _, err := leaf.Verify(opts); err != nil {
+					return fmt.Errorf("the API server's certificate: %w", err)
+				}
+			}
+			notAfter = leaf.NotAfter
+			return nil
+		},
+	}
+	dialer := &tls.Dialer{NetDialer: &net.Dialer{Timeout: 5 * time.Second}, Config: conf}
+	conn, err := dialer.DialContext(ctx, "tcp", server.Host)
+	if err != nil {
+		return time.Time{}, err
+	}
+	conn.Close()
+	return notAfter, nil
+}
 
 // Swappable so tests run without a cluster.
 var (
@@ -55,23 +122,8 @@ var (
 				}
 			}
 		}
-		server, err := url.Parse(cfg.Clusters[c.Cluster].Server)
-		if err != nil {
-			return api, client, err
-		}
-		dialer := &tls.Dialer{NetDialer: &net.Dialer{Timeout: 5 * time.Second},
-			// Only the certificate's dates are read, nothing is sent: an expired one must
-			// still be read.
-			Config: &tls.Config{InsecureSkipVerify: true}} // #nosec G402
-		conn, err := dialer.DialContext(ctx, "tcp", server.Host)
-		if err != nil {
-			return api, client, err
-		}
-		defer conn.Close()
-		if certs := conn.(*tls.Conn).ConnectionState().PeerCertificates; len(certs) > 0 {
-			api = certs[0].NotAfter
-		}
-		return api, client, nil
+		api, err = apiCertExpiry(ctx, cfg.Clusters[c.Cluster])
+		return api, client, err
 	}
 	// fetchAdminKubeconfig reads the cluster's admin kubeconfig on a control plane.
 	fetchAdminKubeconfig = func(ctx context.Context, n providers.Node, known, file string) ([]byte, error) {
