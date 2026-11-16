@@ -5,7 +5,7 @@ weight: 10
 ---
 # Installing tow
 
-tow runs on your machine (Linux or macOS, amd64 or arm64) and reaches the cluster's machines over SSH and their providers' APIs. These channels start with the first release, v0.1.0.
+tow runs on your machine (Linux or macOS, amd64 or arm64) and reaches the cluster's machines over SSH and their providers' APIs.
 
 ## Debian, Ubuntu and their derivatives (apt)
 ```bash

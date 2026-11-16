@@ -98,10 +98,12 @@ homebrew_casks:
       bash: completions/tow.bash
       zsh: completions/tow.zsh
       fish: completions/tow.fish
+    # The token comes from the project's GitHub App on a real release only: valid one hour,
+    # homebrew-tap only (docs/releasing.md).
     repository:
-      owner: tow
+      owner: towproj
       name: homebrew-tap
-      token: '{{ index .Env "HOMEBREW_TAP_TOKEN" }}' # set on a real release only
+      token: '{{ index .Env "HOMEBREW_TAP_TOKEN" }}'
     hooks:
       post:
         install_steps: |
